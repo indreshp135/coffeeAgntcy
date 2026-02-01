@@ -55,19 +55,40 @@ Match HIRED replaces manual hiring pipelines with an **AI-driven, multi-agent re
 
 ---
 
-## 🛠 System Architecture
+## 🛠 System Architecture & Engine Diagrams
 
 Match HIRED is built as a **Multi-Agent System (A2A)** coordinated through a central hub called **The Exchange**.
-
-<p align="center">
-  <img src="architecture/MAS%20(1).png" alt="Match HIRED Multi-Agent Architecture" width="850"/>
-</p>
-
 **The Exchange** orchestrates communication, task routing, and decision flow between specialized agents.
+
+### Technical Stack Overview
+<figure align="center">
+  <img src="architectures/Techstack_diagram.jpeg" alt="Match HIRED Technical Stack" width="850"/>
+  <figcaption>MatchHIRED Technical Stack</figcaption>
+</figure>
+
+### Engine Components
+<figure align="center">
+  <img src="architectures/engine1.png" alt="Engine Component 1" width="850"/>
+</figure>
+
+<figure align="center">
+  <img src="architectures/engine2.png" alt="Engine Component 2" width="850"/>
+</figure>
+
+<figure align="center">
+  <img src="architectures/engine3.png" alt="Engine Component 3" width="850"/>
+</figure>
+
 
 ---
 
 ## 🤖 Multi-Agent Design
+
+### Multi-Agent Architecture
+<figure align="center">
+  <img src="architectures/MAS.png" alt="Match HIRED Multi-Agent Architecture" width="850"/>
+  <figcaption>MatchHIRED Multi-Agent Architecture</figcaption>
+</figure>
 
 ### 🧠 The Exchange (Core Orchestrator)
 - Coordinates all agent interactions
