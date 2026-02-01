@@ -63,9 +63,9 @@ Match HIRED replaces manual hiring pipelines with an **AI-driven, multi-agent re
 
 ### 👤 Candidate Profile Flow
 <p align="center">
-  <img src="demo/Candidate_profile.jpeg" alt="Candidate Profile 1" width="250"/>
-  <img src="demo/Candidate_profile_2.jpeg" alt="Candidate Profile 2" width="250"/>
-  <img src="demo/Candidate_profile_3.jpeg" alt="Candidate Profile 3" width="250"/>
+  <img src="architectures/Candidate_profile.jpeg" alt="Candidate Profile 1" width="250"/>
+  <img src="architectures/Candidate_profile_2.jpeg" alt="Candidate Profile 2" width="250"/>
+  <img src="architectures/Candidate_profile_3.jpeg" alt="Candidate Profile 3" width="250"/>
 </p>
 <p align="center"><em>Candidate profile creation, skill extraction, and AI-driven evaluation</em></p>
 
@@ -73,13 +73,13 @@ Match HIRED replaces manual hiring pipelines with an **AI-driven, multi-agent re
 
 ### 🎤 Live AI Interview & Opportunities
 <p align="center">
-  <img src="demo/LiveInterview.jpeg" alt="Live AI Interview" width="380"/>
-  <img src="demo/Opportunities_1.jpeg" alt="Opportunities View 1" width="380"/>
+  <img src="architectures/LiveInterview.jpeg" alt="Live AI Interview" width="380"/>
+  <img src="architectures/Opportunities_1.jpeg" alt="Opportunities View 1" width="380"/>
 </p>
 <p align="center"><em>AI-led interview experience and personalized opportunity recommendations</em></p>
 
 <p align="center">
-  <img src="demo/Opportunities_2.jpeg" alt="Opportunities View 2" width="380"/>
+  <img src="architectures/Opportunities_2.jpeg" alt="Opportunities View 2" width="380"/>
 </p>
 <p align="center"><em>Ranked job opportunities based on interview performance</em></p>
 
@@ -87,8 +87,8 @@ Match HIRED replaces manual hiring pipelines with an **AI-driven, multi-agent re
 
 ### 📱 Android Proctoring & Interview App
 <p align="center">
-  <img src="demo/android_1.jpeg" alt="Android Interview App 1" width="300"/>
-  <img src="demo/android_2.jpeg" alt="Android Interview App 2" width="300"/>
+  <img src="architectures/android_1.jpeg" alt="Android Interview App 1" width="300"/>
+  <img src="architectures/android_2.jpeg" alt="Android Interview App 2" width="300"/>
 </p>
 <p align="center"><em>Android-based interview interface with integrated proctoring</em></p>
 
