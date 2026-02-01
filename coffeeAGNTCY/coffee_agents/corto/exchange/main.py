@@ -9,7 +9,7 @@ from pathlib import Path
 from typing import Annotated, Any
 
 from dotenv import load_dotenv
-from fastapi import Depends, FastAPI, File, Form, HTTPException, UploadFile
+from fastapi import Depends, FastAPI, File, Form, HTTPException, Request, UploadFile
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import Response
 from pydantic import BaseModel
@@ -129,6 +129,32 @@ app.add_middleware(
 exchange_agent = ExchangeAgent(factory=factory)
 
 ALLOWED_RESUME_EXTENSIONS = {".pdf", ".docx"}
+
+
+# ---------- Agent discovery (HTTP) ----------
+# Serve agent card over HTTP so discovery does not rely on SLIM request-response;
+# SLIM can log "no output connection available" / "no matching found" when the
+# requester is not subscribed for the response on the same SLIM instance.
+@app.get("/.well-known/agent-card.json")
+async def well_known_agent_card(request: Request):
+    """Return the Corto Exchange agent card for HTTP-based discovery."""
+    base = str(request.base_url).rstrip("/")
+    card = {
+        "name": "Corto Exchange",
+        "id": "corto-exchange-agent",
+        "description": "Recruitment orchestration: resume ingestion, job matching, interview prep and scheduling.",
+        "url": base,
+        "version": "1.0.0",
+        "defaultInputModes": ["text"],
+        "defaultOutputModes": ["text"],
+        "capabilities": {"streaming": True},
+        "skills": [],
+        "supportsAuthenticatedExtendedCard": False,
+    }
+    return Response(
+        content=json.dumps(card, indent=2),
+        media_type="application/json",
+    )
 MAX_RESUME_SIZE_MB = 10
 
 
@@ -405,7 +431,31 @@ async def candidate_list_interviews(
                 "job_candidate_id": jc.id,
                 "job_id": job.id,
                 "job_title": job.title,
-                "description_md": job.description_md or "",
+                "description_md": job.description_md or """# AI Engineer
+
+**Location:** [City, Country / Remote]  
+**Job Type:** [Full-Time / Part-Time / Contract]
+
+## About the Role
+We are looking for an **AI Engineer** to design, develop, and deploy AI/ML models that solve real-world problems and enhance our products.
+
+## Responsibilities
+- Build and optimize machine learning models.  
+- Collaborate with teams to integrate AI solutions.  
+- Maintain AI pipelines and workflows.  
+- Research and implement latest AI techniques.  
+
+## Requirements
+- Bachelor’s or Master’s in Computer Science, AI, or related field.  
+- Proficiency in Python and ML libraries (TensorFlow, PyTorch, scikit-learn).  
+- Experience with data preprocessing, feature engineering, and model evaluation.  
+- Knowledge of cloud platforms (AWS, GCP, Azure) and Docker/Kubernetes.  
+
+## Preferred
+- Experience with NLP, computer vision, or generative AI.  
+- Familiarity with MLOps and production deployment.  
+- Strong problem-solving and teamwork skills.
+""",
                 "invited_at": jc.invited_at.isoformat() if jc.invited_at else None,
                 "interview_completed_at": (
                     jc.interview_completed_at.isoformat() if jc.interview_completed_at else None

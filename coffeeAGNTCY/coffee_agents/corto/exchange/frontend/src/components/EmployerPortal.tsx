@@ -1,19 +1,33 @@
 import { useCallback, useState, useEffect } from "react";
-import { Plus, List, Loader2, Send, Sparkles } from "lucide-react";
+import { Plus, List, Loader2, Send, Sparkles, X, FileText, Calendar, ChevronRight } from "lucide-react";
 import { JDEditor } from "./JDEditor";
 import {
   employerCreateJob,
   employerGenerateJd,
   employerListJobs,
   employerGetJob,
-  employerUpdateJob,
   employerPublishJob,
   employerFinalizeJob,
   type JobSummary,
 } from "../api";
 import { cn } from "../utils";
 
-export function EmployerPortal() {
+function StatusPill({ status }: { status: string }) {
+  return (
+    <span
+      className={cn(
+        "employer-portal-status-pill capitalize",
+        status === "draft" && "employer-portal-status-draft",
+        status === "published" && "employer-portal-status-published",
+        status === "closed" && "employer-portal-status-closed"
+      )}
+    >
+      {status}
+    </span>
+  );
+}
+
+function EmployerPortal() {
   const [jobs, setJobs] = useState<JobSummary[]>([]);
   const [loading, setLoading] = useState(false);
   const [section, setSection] = useState<"create" | "list">("create");
@@ -104,175 +118,213 @@ export function EmployerPortal() {
   };
 
   return (
-    <div className="mx-auto max-w-4xl space-y-8">
-      <div className="flex flex-wrap gap-2 border-b border-surface-600 pb-4">
-        <button
-          type="button"
-          onClick={() => setSection("create")}
-          className={cn(
-            "flex items-center gap-2 rounded-lg px-4 py-2 text-sm font-medium transition-colors",
-            section === "create" ? "bg-accent-blue/20 text-accent-blue" : "text-zinc-400 hover:bg-surface-700 hover:text-zinc-200"
-          )}
-        >
-          <Plus className="h-4 w-4" />
-          New job
-        </button>
-        <button
-          type="button"
-          onClick={() => setSection("list")}
-          className={cn(
-            "flex items-center gap-2 rounded-lg px-4 py-2 text-sm font-medium transition-colors",
-            section === "list" ? "bg-accent-blue/20 text-accent-blue" : "text-zinc-400 hover:bg-surface-700 hover:text-zinc-200"
-          )}
-        >
-          <List className="h-4 w-4" />
-          My jobs
-        </button>
+    <div className="mx-auto max-w-5xl px-4 sm:px-6 lg:px-8 pb-20">
+      {/* Navigation — elegant underline tabs */}
+      <nav className="flex flex-wrap gap-x-1 gap-y-2 border-b border-white/[0.06] pb-px" aria-label="Employer portal sections">
+        {[
+          { id: "create" as const, label: "New job", icon: Plus },
+          { id: "list" as const, label: "My jobs", icon: List },
+        ].map(({ id, label, icon: Icon }) => (
+          <button
+            key={id}
+            type="button"
+            onClick={() => setSection(id)}
+            className={cn(
+              "employer-portal-nav-item flex items-center gap-2.5 px-5 py-4",
+              section === id && "active"
+            )}
+          >
+            <Icon className={cn("h-4 w-4 transition-colors", section === id ? "text-amber-400/90" : "text-zinc-500")} strokeWidth={1.75} />
+            {label}
+          </button>
+        ))}
+      </nav>
+
+      <div className="mt-10 space-y-10">
+        {section === "create" && (
+          <>
+            {/* AI Generate — premium card */}
+            <article className="employer-portal-card overflow-hidden animate-slide-up">
+              <header className="border-b border-white/[0.06] px-6 sm:px-8 py-6 flex flex-wrap items-center gap-4 bg-gradient-to-r from-amber-500/5 via-transparent to-cyan-500/5">
+                <div className="flex h-12 w-12 items-center justify-center rounded-xl bg-gradient-to-br from-amber-400/20 to-amber-600/20 text-amber-400/90 ring-1 ring-amber-400/20">
+                  <Sparkles className="h-6 w-6" strokeWidth={1.75} />
+                </div>
+                <div>
+                  <h2 className="employer-portal-section-title">Generate with AI</h2>
+                  <p className="mt-0.5 text-sm text-zinc-500 font-normal">
+                    Describe the role in a few words and we&apos;ll draft the full job description.
+                  </p>
+                </div>
+              </header>
+              <div className="p-6 sm:p-8">
+                <div className="flex flex-col sm:flex-row gap-3">
+                  <input
+                    type="text"
+                    value={createPrompt}
+                    onChange={(e) => setCreatePrompt(e.target.value)}
+                    onKeyDown={(e) => {
+                      if (e.key === "Enter") {
+                        e.preventDefault();
+                        void handleGenerateJd();
+                      }
+                    }}
+                    placeholder="e.g. Senior Backend Engineer, remote, 5+ years Python, AWS"
+                    className="flex-1 rounded-xl border border-white/[0.08] bg-white/[0.03] px-4 py-3 text-sm text-zinc-100 placeholder:text-zinc-500 focus:border-amber-400/40 focus:outline-none focus:ring-1 focus:ring-amber-400/20 transition-colors"
+                    disabled={generating}
+                    aria-label="Prompt for AI job description"
+                  />
+                  <button
+                    type="button"
+                    onClick={() => void handleGenerateJd()}
+                    disabled={generating || !createPrompt.trim()}
+                    className="inline-flex items-center justify-center gap-2 rounded-xl bg-gradient-to-r from-amber-500/20 to-amber-600/20 px-5 py-3 text-sm font-medium text-amber-300 ring-1 ring-amber-400/25 hover:from-amber-500/30 hover:to-amber-600/30 hover:ring-amber-400/35 disabled:opacity-50 disabled:pointer-events-none transition-all shrink-0"
+                  >
+                    {generating ? <Loader2 className="h-4 w-4 animate-spin" /> : <Sparkles className="h-4 w-4" />}
+                    {generating ? "Generating…" : "Generate"}
+                  </button>
+                </div>
+              </div>
+            </article>
+
+            {/* Post a job — premium card */}
+            <article className="employer-portal-card overflow-hidden animate-slide-up">
+              <header className="border-b border-white/[0.06] px-6 sm:px-8 py-6 flex flex-wrap items-center gap-4 bg-gradient-to-r from-cyan-500/5 via-transparent to-transparent">
+                <div className="flex h-12 w-12 items-center justify-center rounded-xl bg-gradient-to-br from-cyan-400/20 to-cyan-600/20 text-cyan-400 ring-1 ring-cyan-400/20">
+                  <FileText className="h-6 w-6" strokeWidth={1.75} />
+                </div>
+                <div>
+                  <h2 className="employer-portal-section-title">Post a job</h2>
+                  <p className="mt-0.5 text-sm text-zinc-500 font-normal">
+                    Enter title and job description (Markdown). Use AI above to draft one, or paste your own.
+                  </p>
+                </div>
+              </header>
+              <form onSubmit={handleCreateJob} className="p-6 sm:p-8 space-y-6">
+                <div>
+                  <label className="block text-sm font-medium text-zinc-400 tracking-wide mb-2">Job title</label>
+                  <input
+                    type="text"
+                    value={title}
+                    onChange={(e) => {
+                      setTitle(e.target.value);
+                      setGeneratedSchema(null);
+                    }}
+                    required
+                    placeholder="e.g. Senior Backend Engineer"
+                    className="w-full rounded-xl border border-white/[0.08] bg-white/[0.03] px-4 py-3 text-zinc-100 placeholder:text-zinc-500 focus:border-cyan-400/40 focus:outline-none focus:ring-1 focus:ring-cyan-400/20 transition-colors"
+                  />
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-zinc-400 tracking-wide mb-2">Job description (Markdown)</label>
+                  <JDEditor
+                    value={descriptionMd}
+                    onChange={(v) => {
+                      setDescriptionMd(v);
+                      setGeneratedSchema(null);
+                    }}
+                    className="mt-0"
+                  />
+                </div>
+                <div className="employer-portal-divider my-6" aria-hidden />
+                <button
+                  type="submit"
+                  disabled={creating}
+                  className="inline-flex items-center gap-2 rounded-xl bg-gradient-to-r from-cyan-500/20 to-cyan-600/20 px-5 py-3 text-sm font-medium text-cyan-300 ring-1 ring-cyan-400/25 hover:from-cyan-500/30 hover:to-cyan-600/30 hover:ring-cyan-400/35 disabled:opacity-50 disabled:pointer-events-none transition-all"
+                >
+                  {creating ? <Loader2 className="h-4 w-4 animate-spin" /> : null}
+                  {creating ? "Creating…" : "Create job (draft)"}
+                </button>
+              </form>
+            </article>
+          </>
+        )}
+
+        {section === "list" && (
+          <article className="employer-portal-card overflow-hidden animate-slide-up">
+            <header className="border-b border-white/[0.06] px-6 sm:px-8 py-6">
+              <h2 className="employer-portal-section-title">My jobs</h2>
+              <p className="mt-0.5 text-sm text-zinc-500 font-normal">Manage drafts, publish, and finalize positions.</p>
+            </header>
+            {loading ? (
+              <div className="flex flex-col items-center justify-center py-20 gap-4">
+                <div className="h-10 w-10 animate-spin rounded-full border-2 border-amber-400/30 border-t-amber-400" />
+                <p className="text-sm text-zinc-500">Loading jobs…</p>
+              </div>
+            ) : jobs.length === 0 ? (
+              <div className="flex flex-col items-center justify-center py-20 px-6 text-center">
+                <div className="flex h-16 w-16 items-center justify-center rounded-2xl bg-white/[0.04] text-zinc-600 mb-4">
+                  <List className="h-8 w-8" />
+                </div>
+                <p className="text-zinc-400 font-medium">No jobs yet</p>
+                <p className="mt-1 text-sm text-zinc-500 max-w-sm">Create your first job in the &quot;New job&quot; tab to get started.</p>
+                <button
+                  type="button"
+                  onClick={() => setSection("create")}
+                  className="mt-6 rounded-xl border border-white/10 px-4 py-2 text-sm font-medium text-zinc-300 hover:bg-white/5 hover:text-zinc-100 transition-colors"
+                >
+                  New job
+                </button>
+              </div>
+            ) : (
+              <ul className="divide-y divide-white/[0.06]">
+                {jobs.map((job) => (
+                  <li
+                    key={job.id}
+                    className="group px-6 sm:px-8 py-5 hover:bg-white/[0.02] transition-colors"
+                  >
+                    <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+                      <div className="min-w-0 flex-1">
+                        <button
+                          type="button"
+                          onClick={() => setSelectedId(job.id)}
+                          className="text-left font-semibold text-zinc-100 hover:text-cyan-400 transition-colors flex items-center gap-2 w-full"
+                        >
+                          <span className="truncate">{job.title}</span>
+                          <ChevronRight className="h-4 w-4 shrink-0 opacity-0 group-hover:opacity-100 transition-opacity text-cyan-400/80" />
+                        </button>
+                        <div className="mt-1.5 flex flex-wrap items-center gap-3 text-sm">
+                          <StatusPill status={job.status} />
+                          <span className="flex items-center gap-1.5 text-zinc-500">
+                            <Calendar className="h-3.5 w-3.5" />
+                            {new Date(job.created_at).toLocaleDateString(undefined, { day: "numeric", month: "short", year: "numeric" })}
+                          </span>
+                        </div>
+                      </div>
+                      <div className="flex shrink-0 items-center gap-2">
+                        {job.status === "draft" && (
+                          <button
+                            type="button"
+                            onClick={() => handlePublish(job.id)}
+                            disabled={publishingId === job.id}
+                            className="inline-flex items-center gap-2 rounded-xl bg-emerald-500/15 px-4 py-2.5 text-sm font-medium text-emerald-400 ring-1 ring-emerald-500/25 hover:bg-emerald-500/25 hover:ring-emerald-500/35 disabled:opacity-50 disabled:pointer-events-none transition-all"
+                          >
+                            {publishingId === job.id ? <Loader2 className="h-4 w-4 animate-spin" /> : <Send className="h-4 w-4" />}
+                            Publish
+                          </button>
+                        )}
+                        {job.status === "published" && (
+                          <button
+                            type="button"
+                            onClick={() => handleFinalize(job.id)}
+                            disabled={finalizingId === job.id}
+                            className="inline-flex items-center gap-2 rounded-xl bg-amber-500/15 px-4 py-2.5 text-sm font-medium text-amber-300 ring-1 ring-amber-500/25 hover:bg-amber-500/25 hover:ring-amber-500/35 disabled:opacity-50 disabled:pointer-events-none transition-all"
+                          >
+                            {finalizingId === job.id ? <Loader2 className="h-4 w-4 animate-spin" /> : null}
+                            Finalize
+                          </button>
+                        )}
+                        {job.status === "closed" && (
+                          <span className="text-sm text-zinc-500 italic">Closed</span>
+                        )}
+                      </div>
+                    </div>
+                  </li>
+                ))}
+              </ul>
+            )}
+          </article>
+        )}
       </div>
-
-      {section === "create" && (
-        <>
-          <div className="rounded-2xl border border-surface-600 bg-surface-800/80 overflow-hidden p-5">
-            <div className="flex items-center gap-2 text-accent-amber/90 mb-2">
-              <Sparkles className="h-5 w-5" />
-              <span className="font-semibold text-zinc-200">Generate with AI</span>
-            </div>
-            <p className="text-sm text-zinc-400 mb-3">
-              Describe the role in a few words and we&apos;ll draft the full job description (e.g. &quot;Senior Python backend, remote, fintech&quot;).
-            </p>
-            <div className="flex gap-2">
-              <input
-                type="text"
-                value={createPrompt}
-                onChange={(e) => setCreatePrompt(e.target.value)}
-                onKeyDown={(e) => {
-                  if (e.key === "Enter") {
-                    e.preventDefault();
-                    void handleGenerateJd();
-                  }
-                }}
-                placeholder="e.g. Senior Backend Engineer, remote, 5+ years Python, AWS"
-                className="flex-1 rounded-lg border border-surface-600 bg-surface-850 px-4 py-2.5 text-sm text-zinc-100 placeholder:text-zinc-500 focus:border-accent-amber/50 focus:outline-none focus:ring-1 focus:ring-accent-amber/30"
-                disabled={generating}
-                aria-label="Prompt for AI job description"
-              />
-              <button
-                type="button"
-                onClick={() => void handleGenerateJd()}
-                disabled={generating || !createPrompt.trim()}
-                className="rounded-lg bg-accent-amber/20 px-4 py-2.5 text-sm font-medium text-accent-amber hover:bg-accent-amber/30 disabled:opacity-60 flex items-center gap-2 shrink-0"
-              >
-                {generating ? <Loader2 className="h-4 w-4 animate-spin" /> : <Sparkles className="h-4 w-4" />}
-                {generating ? "Generating…" : "Generate"}
-              </button>
-            </div>
-          </div>
-
-          <div className="rounded-2xl border border-surface-600 bg-surface-800/80 overflow-hidden">
-            <div className="border-b border-surface-600 px-5 py-4">
-              <h2 className="font-semibold text-zinc-100">Post a job</h2>
-              <p className="text-sm text-zinc-400">Enter title and job description (Markdown). Use &quot;Generate with AI&quot; above to draft one, or paste your own.</p>
-            </div>
-            <form onSubmit={handleCreateJob} className="p-5 space-y-4">
-            <div>
-              <label className="block text-sm font-medium text-zinc-300">Job title</label>
-              <input
-                type="text"
-                value={title}
-                onChange={(e) => {
-                  setTitle(e.target.value);
-                  setGeneratedSchema(null);
-                }}
-                required
-                placeholder="e.g. Senior Backend Engineer"
-                className="mt-1 w-full rounded-lg border border-surface-600 bg-surface-850 px-4 py-2.5 text-zinc-100 placeholder:text-zinc-500 focus:border-accent-cyan/50 focus:outline-none focus:ring-1 focus:ring-accent-cyan/30"
-              />
-            </div>
-            <div>
-              <label className="block text-sm font-medium text-zinc-300">Job description (Markdown)</label>
-              <JDEditor
-                value={descriptionMd}
-                onChange={(v) => {
-                  setDescriptionMd(v);
-                  setGeneratedSchema(null);
-                }}
-                className="mt-1"
-              />
-            </div>
-            <button
-              type="submit"
-              disabled={creating}
-              className="rounded-lg bg-accent-cyan/20 px-4 py-2.5 text-sm font-medium text-accent-cyan hover:bg-accent-cyan/30 disabled:opacity-60"
-            >
-              {creating ? "Creating…" : "Create job (draft)"}
-            </button>
-          </form>
-          </div>
-        </>
-      )}
-
-      {section === "list" && (
-        <div className="rounded-2xl border border-surface-600 bg-surface-800/80 overflow-hidden">
-          <div className="border-b border-surface-600 px-5 py-4">
-            <h2 className="font-semibold text-zinc-100">My jobs</h2>
-          </div>
-          {loading ? (
-            <div className="flex justify-center py-12">
-              <Loader2 className="h-8 w-8 animate-spin text-accent-blue" />
-            </div>
-          ) : jobs.length === 0 ? (
-            <div className="p-8 text-center text-zinc-400">No jobs yet. Create one above.</div>
-          ) : (
-            <ul className="divide-y divide-surface-600">
-              {jobs.map((job) => (
-                <li key={job.id} className="px-5 py-4">
-                  <div className="flex items-center justify-between gap-4">
-                    <div className="min-w-0 flex-1">
-                      <button
-                        type="button"
-                        onClick={() => setSelectedId(job.id)}
-                        className="text-left font-medium text-zinc-100 hover:text-accent-cyan hover:underline"
-                      >
-                        {job.title}
-                      </button>
-                      <p className="text-sm text-zinc-500">
-                        {job.status} · {new Date(job.created_at).toLocaleDateString()}
-                      </p>
-                    </div>
-                    <div className="flex shrink-0 items-center gap-2">
-                      {job.status === "draft" && (
-                        <button
-                          type="button"
-                          onClick={() => handlePublish(job.id)}
-                          disabled={publishingId === job.id}
-                          className="flex items-center gap-2 rounded-lg bg-accent-emerald/20 px-4 py-2 text-sm font-medium text-accent-emerald hover:bg-accent-emerald/30 disabled:opacity-60"
-                        >
-                          {publishingId === job.id ? <Loader2 className="h-4 w-4 animate-spin" /> : <Send className="h-4 w-4" />}
-                          Publish
-                        </button>
-                      )}
-                      {job.status === "published" && (
-                        <button
-                          type="button"
-                          onClick={() => handleFinalize(job.id)}
-                          disabled={finalizingId === job.id}
-                          className="flex items-center gap-2 rounded-lg bg-accent-amber/20 px-4 py-2 text-sm font-medium text-accent-amber hover:bg-accent-amber/30 disabled:opacity-60"
-                        >
-                          {finalizingId === job.id ? <Loader2 className="h-4 w-4 animate-spin" /> : null}
-                          Finalize (score & send to JD)
-                        </button>
-                      )}
-                      {job.status === "closed" && (
-                        <span className="text-sm text-zinc-500">Closed</span>
-                      )}
-                    </div>
-                  </div>
-                </li>
-              ))}
-            </ul>
-          )}
-        </div>
-      )}
 
       {selectedId !== null && (
         <JobDetailModal
@@ -303,29 +355,46 @@ function JobDetailModal({
 
   if (loading || !job) {
     return (
-      <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4">
-        <div className="rounded-2xl border border-surface-600 bg-surface-800 p-8">
-          <Loader2 className="h-8 w-8 animate-spin text-accent-blue" />
+      <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 backdrop-blur-sm p-4" onClick={onClose}>
+        <div className="rounded-2xl border border-white/[0.08] bg-surface-800/95 shadow-2xl p-10" onClick={(e) => e.stopPropagation()}>
+          <div className="h-10 w-10 animate-spin rounded-full border-2 border-amber-400/30 border-t-amber-400" />
         </div>
       </div>
     );
   }
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4" onClick={onClose}>
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 backdrop-blur-sm p-4" onClick={onClose}>
       <div
-        className="max-h-[80vh] w-full max-w-2xl overflow-auto rounded-2xl border border-surface-600 bg-surface-800 p-6 shadow-xl"
+        className="max-h-[85vh] w-full max-w-2xl overflow-hidden rounded-2xl border border-white/[0.08] bg-surface-800/95 shadow-2xl shadow-black/40 flex flex-col"
         onClick={(e) => e.stopPropagation()}
       >
-        <div className="flex items-center justify-between mb-4">
-          <h3 className="text-lg font-semibold text-zinc-100">{job.title}</h3>
-          <button type="button" onClick={onClose} className="text-zinc-400 hover:text-zinc-200">×</button>
-        </div>
-        <p className="text-sm text-zinc-500 mb-2">Status: {job.status}</p>
-        <div className="prose prose-invert max-w-none text-sm text-zinc-300 whitespace-pre-wrap">
-          {job.description_md || "—"}
+        <header className="flex items-start justify-between gap-4 border-b border-white/[0.06] px-6 sm:px-8 py-6 shrink-0">
+          <div>
+            <h3 className="font-serif text-xl font-semibold tracking-tight text-zinc-100">{job.title}</h3>
+            <div className="mt-2">
+              <StatusPill status={job.status} />
+            </div>
+          </div>
+          <button
+            type="button"
+            onClick={onClose}
+            className="rounded-lg p-2 text-zinc-500 hover:text-zinc-200 hover:bg-white/5 transition-colors"
+            aria-label="Close"
+          >
+            <X className="h-5 w-5" />
+          </button>
+        </header>
+        <div className="overflow-y-auto flex-1 px-6 sm:px-8 py-6">
+          <p className="text-xs font-medium text-zinc-500 uppercase tracking-wider mb-3">Description</p>
+          <div className="prose prose-invert max-w-none text-sm text-zinc-300 whitespace-pre-wrap leading-relaxed">
+            {job.description_md || "—"}
+          </div>
         </div>
       </div>
     </div>
   );
 }
+
+export { EmployerPortal };
+export default EmployerPortal;

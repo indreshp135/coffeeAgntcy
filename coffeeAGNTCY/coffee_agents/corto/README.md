@@ -226,6 +226,8 @@ OTLP_HTTP_ENDPOINT="http://localhost:4318"
 
    For a list of supported protocols and implementation details, see the [Agntcy App SDK README](https://github.com/agntcy/app-sdk). This SDK provides the underlying interfaces for building communication bridges and agent clients.
 
+   **SLIM agent-card errors:** If you see SLIM logs like `no output connection available` or `no matching found for ...` when requesting `/.well-known/agent-card.json`, it usually means the requester is not subscribed for the response on the same SLIM instance. Discovery can use HTTP instead: the exchange serves `GET /.well-known/agent-card.json` so clients can fetch the Corto Exchange agent card over HTTP (e.g. `http://localhost:8000/.well-known/agent-card.json`) without going through SLIM.
+
 **Optional: Configure Logging Level**
 
 You can configure the logging level using the LOGGING_LEVEL environment variable. During development, it's recommended to use DEBUG for more detailed output. By default, the logging level is set to INFO.
