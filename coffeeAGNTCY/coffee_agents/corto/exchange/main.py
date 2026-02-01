@@ -1,15 +1,22 @@
 # Copyright AGNTCY Contributors (https://github.com/agntcy)
 # SPDX-License-Identifier: Apache-2.0
 
+import io
 import logging
 from pathlib import Path
 import json
 
 from dotenv import load_dotenv
-from fastapi import FastAPI, HTTPException
+from fastapi import FastAPI, File, HTTPException, UploadFile
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
 import uvicorn
+from pypdf import PdfReader
+
+try:
+    from docx import Document as DocxDocument
+except ImportError:
+    DocxDocument = None
 
 from agntcy_app_sdk.factory import AgntcyFactory
 from ioa_observe.sdk.tracing import session_start
@@ -36,6 +43,53 @@ app.add_middleware(
 )
 
 exchange_agent = ExchangeAgent(factory=factory)
+
+ALLOWED_RESUME_EXTENSIONS = {".pdf", ".docx"}
+MAX_RESUME_SIZE_MB = 10
+
+
+def _extract_text_pdf(content: bytes) -> str:
+    reader = PdfReader(io.BytesIO(content))
+    return "\n".join(page.extract_text() or "" for page in reader.pages)
+
+
+def _extract_text_docx(content: bytes) -> str:
+    if DocxDocument is None:
+        raise HTTPException(
+            status_code=501,
+            detail="DOCX support requires python-docx. Install with: pip install python-docx",
+        )
+    doc = DocxDocument(io.BytesIO(content))
+    return "\n".join(p.text for p in doc.paragraphs)
+
+
+@app.post("/agent/extract-resume")
+async def extract_resume(file: UploadFile = File(...)):
+    """
+    Upload a resume file (PDF or DOCX); returns extracted plain text.
+    """
+    suffix = Path(file.filename or "").suffix.lower()
+    if suffix not in ALLOWED_RESUME_EXTENSIONS:
+        raise HTTPException(
+            status_code=400,
+            detail=f"Unsupported file type. Allowed: {', '.join(ALLOWED_RESUME_EXTENSIONS)}",
+        )
+    content = await file.read()
+    if len(content) > MAX_RESUME_SIZE_MB * 1024 * 1024:
+        raise HTTPException(
+            status_code=400,
+            detail=f"File too large. Max size: {MAX_RESUME_SIZE_MB} MB",
+        )
+    try:
+        if suffix == ".pdf":
+            text = _extract_text_pdf(content)
+        else:
+            text = _extract_text_docx(content)
+    except Exception as e:
+        logger.exception("Resume extraction failed: %s", e)
+        raise HTTPException(status_code=500, detail=f"Failed to extract text: {e}") from e
+    return {"text": text, "filename": file.filename}
+
 
 class PromptRequest(BaseModel):
   prompt: str

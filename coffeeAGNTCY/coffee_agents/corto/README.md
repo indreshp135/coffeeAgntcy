@@ -31,7 +31,17 @@ The Exchange Agent acts as a client interface, receiving prompts from the user i
 
 The Farm Agent serves as a backend flavor profile generator, processing incoming requests and returning descriptive output.
 
-The user interface forwards all prompts to the exchange’s API, which are then given to an A2A client. This A2A client connects to the farm’s A2A server. The underlying A2A transport layer is fully configurable. By default, the system uses AGNTCY's SLIM. 
+The user interface forwards all prompts to the exchange’s API, which are then given to an A2A client. This A2A client connects to the farm’s A2A server. The underlying A2A transport layer is fully configurable. By default, the system uses AGNTCY's SLIM.
+
+### Multi-Agent Recruitment System
+
+Corto also includes a **multi-agent recruitment** flow, routed through the same Exchange:
+
+- **Resume Mastermind** – Ingests resumes (extracts structured data) and answers "who has maximum match for this job description?" from stored resumes.
+- **Job Description Mastermind** – Takes a job description, calls Resume Mastermind for best candidates, then calls Interview Mastermind to prepare interview questions for the top candidate(s).
+- **Interview Mastermind** – Given a job description and candidate resume/summary, prepares tailored interview questions.
+
+The Exchange routes user prompts to the appropriate agent (resume ingestion, best match, full JD workflow, or interview prep). Coffee-flavor prompts continue to go to the Farm agent. Start the three recruitment agents (see config for ports 9991–9993) along with Farm and Exchange when using recruitment features.
 
 
 ## Running Corto Locally

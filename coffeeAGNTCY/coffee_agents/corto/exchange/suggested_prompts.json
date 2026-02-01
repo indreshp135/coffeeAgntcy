@@ -1,5 +1,6 @@
 [
-  "What are the flavor profiles of Ethiopian coffee?",
-  "What does coffee harvested in Colombia in the summer taste like?",
-  "What is the flavor of coffee from Brazil?"
+  "Here is a resume: [paste resume text]. Extract and store it.",
+  "Who has the maximum match for this job description? [paste job description]",
+  "I have this job description: [paste]. Find best candidates and prepare interview questions for the top one.",
+  "Prepare interview questions for this job and candidate: [job description] and [resume/summary]"
 ]

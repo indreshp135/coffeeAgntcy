@@ -1,20 +1,20 @@
 services:
-  farm-server:
-    build:
-      context: ../../..
-      dockerfile: coffeeAGNTCY/coffee_agents/corto/docker/Dockerfile.farm
-    image: ghcr.io/agntcy/coffee-agntcy/corto-farm:latest
-    container_name: farm-server
-    env_file:
-      - .env
-    environment:
-      - FARM_AGENT_HOST=farm-server
-      - FARM_AGENT_PORT=9999
-      - DEFAULT_MESSAGE_TRANSPORT=${DEFAULT_MESSAGE_TRANSPORT:-SLIM}
-      - TRANSPORT_SERVER_ENDPOINT=${TRANSPORT_SERVER_ENDPOINT:-http://slim:46357}
-      - OTLP_HTTP_ENDPOINT=${OTLP_HTTP_ENDPOINT:-http://otel-collector:4318}
-    ports:
-      - "9999:9999"
+  # farm-server:
+  #   build:
+  #     context: ../../..
+  #     dockerfile: coffeeAGNTCY/coffee_agents/corto/docker/Dockerfile.farm
+  #   image: ghcr.io/agntcy/coffee-agntcy/corto-farm:latest
+  #   container_name: farm-server
+  #   env_file:
+  #     - .env
+  #   environment:
+  #     - FARM_AGENT_HOST=farm-server
+  #     - FARM_AGENT_PORT=9999
+  #     - DEFAULT_MESSAGE_TRANSPORT=${DEFAULT_MESSAGE_TRANSPORT:-SLIM}
+  #     - TRANSPORT_SERVER_ENDPOINT=${TRANSPORT_SERVER_ENDPOINT:-http://slim:46357}
+  #     - OTLP_HTTP_ENDPOINT=${OTLP_HTTP_ENDPOINT:-http://otel-collector:4318}
+  #   ports:
+  #     - "9999:9999"
 
   nats:
     image: nats:latest
@@ -37,41 +37,100 @@ services:
       - ./config/docker/slim/server-config.yaml:/config.yaml
     command: ["/slim", "--config", "/config.yaml"]
 
-  # Exchange server App (farm client)
-  exchange-server:
-    build:
-      context: ../../..
-      dockerfile: coffeeAGNTCY/coffee_agents/corto/docker/Dockerfile.exchange
-    image: ghcr.io/agntcy/coffee-agntcy/corto-exchange:latest
-    container_name: exchange-server-corto
-    env_file:
-      - .env
-    environment:
-      - FARM_AGENT_HOST=farm-server
-      - FARM_AGENT_PORT=9999
-      - DEFAULT_MESSAGE_TRANSPORT=${DEFAULT_MESSAGE_TRANSPORT:-SLIM}
-      - TRANSPORT_SERVER_ENDPOINT=${TRANSPORT_SERVER_ENDPOINT:-http://slim:46357}
-      - OTLP_HTTP_ENDPOINT=${OTLP_HTTP_ENDPOINT:-http://otel-collector:4318}
-    depends_on:
-      - farm-server
-    ports:
-      - "8000:8000"
-    volumes:
-      # Mount the repo's .git to allow git-based version fallback inside the container for local dev
-      - ../../../.git:/app/.git:ro
+  # resume-mastermind:
+  #   build:
+  #     context: ../../..
+  #     dockerfile: coffeeAGNTCY/coffee_agents/corto/docker/Dockerfile.farm
+  #   image: ghcr.io/agntcy/coffee-agntcy/corto-resume-mastermind:latest
+  #   container_name: resume-mastermind
+  #   command: ["uv", "run", "python", "-m", "resume_mastermind.agent_server"]
+  #   env_file:
+  #     - .env
+  #   environment:
+  #     - RESUME_MASTERMIND_HOST=resume-mastermind
+  #     - RESUME_MASTERMIND_PORT=9991
+  #     - DEFAULT_MESSAGE_TRANSPORT=${DEFAULT_MESSAGE_TRANSPORT:-SLIM}
+  #     - TRANSPORT_SERVER_ENDPOINT=${TRANSPORT_SERVER_ENDPOINT:-http://slim:46357}
+  #     - OTLP_HTTP_ENDPOINT=${OTLP_HTTP_ENDPOINT:-http://otel-collector:4318}
+  #   ports:
+  #     - "9991:9991"
 
-  ui:
-    build:
-      context: ../../..
-      dockerfile: coffeeAGNTCY/coffee_agents/corto/docker/Dockerfile.ui
-    image: ghcr.io/agntcy/coffee-agntcy/corto-ui:latest
-    container_name: ui-corto
-    environment:
-      - VITE_EXCHANGE_APP_API_URL=http://127.0.0.1:8000
-    depends_on:
-      - exchange-server
-    ports:
-      - "3000:3000"
+  # job-description-mastermind:
+  #   build:
+  #     context: ../../..
+  #     dockerfile: coffeeAGNTCY/coffee_agents/corto/docker/Dockerfile.farm
+  #   image: ghcr.io/agntcy/coffee-agntcy/corto-job-description-mastermind:latest
+  #   container_name: job-description-mastermind
+  #   command: ["uv", "run", "python", "-m", "job_description_mastermind.agent_server"]
+  #   env_file:
+  #     - .env
+  #   environment:
+  #     - JOB_DESCRIPTION_MASTERMIND_HOST=job-description-mastermind
+  #     - JOB_DESCRIPTION_MASTERMIND_PORT=9992
+  #     - DEFAULT_MESSAGE_TRANSPORT=${DEFAULT_MESSAGE_TRANSPORT:-SLIM}
+  #     - TRANSPORT_SERVER_ENDPOINT=${TRANSPORT_SERVER_ENDPOINT:-http://slim:46357}
+  #     - OTLP_HTTP_ENDPOINT=${OTLP_HTTP_ENDPOINT:-http://otel-collector:4318}
+  #   depends_on:
+  #     - resume-mastermind
+  #   ports:
+  #     - "9992:9992"
+
+  # interview-mastermind:
+  #   build:
+  #     context: ../../..
+  #     dockerfile: coffeeAGNTCY/coffee_agents/corto/docker/Dockerfile.farm
+  #   image: ghcr.io/agntcy/coffee-agntcy/corto-interview-mastermind:latest
+  #   container_name: interview-mastermind
+  #   command: ["uv", "run", "python", "-m", "interview_mastermind.agent_server"]
+  #   env_file:
+  #     - .env
+  #   environment:
+  #     - INTERVIEW_MASTERMIND_HOST=interview-mastermind
+  #     - INTERVIEW_MASTERMIND_PORT=9993
+  #     - DEFAULT_MESSAGE_TRANSPORT=${DEFAULT_MESSAGE_TRANSPORT:-SLIM}
+  #     - TRANSPORT_SERVER_ENDPOINT=${TRANSPORT_SERVER_ENDPOINT:-http://slim:46357}
+  #     - OTLP_HTTP_ENDPOINT=${OTLP_HTTP_ENDPOINT:-http://otel-collector:4318}
+  #   ports:
+  #     - "9993:9993"
+
+  # # Exchange server App (farm client + multi-agent router)
+  # exchange-server:
+  #   build:
+  #     context: ../../..
+  #     dockerfile: coffeeAGNTCY/coffee_agents/corto/docker/Dockerfile.exchange
+  #   image: ghcr.io/agntcy/coffee-agntcy/corto-exchange:latest
+  #   container_name: exchange-server-corto
+  #   env_file:
+  #     - .env
+  #   environment:
+  #     - FARM_AGENT_HOST=farm-server
+  #     - FARM_AGENT_PORT=9999
+  #     - DEFAULT_MESSAGE_TRANSPORT=${DEFAULT_MESSAGE_TRANSPORT:-SLIM}
+  #     - TRANSPORT_SERVER_ENDPOINT=${TRANSPORT_SERVER_ENDPOINT:-http://slim:46357}
+  #     - OTLP_HTTP_ENDPOINT=${OTLP_HTTP_ENDPOINT:-http://otel-collector:4318}
+  #   depends_on:
+  #     - farm-server
+  #     - resume-mastermind
+  #     - job-description-mastermind
+  #     - interview-mastermind
+  #   ports:
+  #     - "8000:8000"
+  #   volumes:
+  #     # Mount the repo's .git to allow git-based version fallback inside the container for local dev
+  #     - ../../../.git:/app/.git:ro
+
+  # ui:
+  #   build:
+  #     context: ../../..
+  #     dockerfile: coffeeAGNTCY/coffee_agents/corto/docker/Dockerfile.ui
+  #   image: ghcr.io/agntcy/coffee-agntcy/corto-ui:latest
+  #   container_name: ui-corto
+  #   environment:
+  #     - VITE_EXCHANGE_APP_API_URL=http://127.0.0.1:8000
+  #   depends_on:
+  #     - exchange-server
+  #   ports:
+  #     - "3000:3000"
 
   clickhouse-server:
     image: clickhouse/clickhouse-server
@@ -115,18 +174,18 @@ services:
       clickhouse-server:
         condition: service_healthy
 
-  grafana:
-    image: grafana/grafana
-    container_name: grafana-corto
-    ports:
-      - "3001:3000"
-    environment:
-      - GF_INSTALL_PLUGINS=grafana-clickhouse-datasource
-      - GF_SECURITY_ADMIN_PASSWORD=admin
-      - GF_USERS_ALLOW_SIGN_UP=false
-    depends_on:
-      clickhouse-server:
-        condition: service_healthy
+  # grafana:
+  #   image: grafana/grafana
+  #   container_name: grafana-corto
+  #   ports:
+  #     - "3001:3000"
+  #   environment:
+  #     - GF_INSTALL_PLUGINS=grafana-clickhouse-datasource
+  #     - GF_SECURITY_ADMIN_PASSWORD=admin
+  #     - GF_USERS_ALLOW_SIGN_UP=false
+  #   depends_on:
+  #     clickhouse-server:
+  #       condition: service_healthy
 
   mce-api-layer:
     image: ghcr.io/agntcy/obs-api:0.1.1
@@ -152,15 +211,15 @@ services:
       retries: 3
       start_period: 30s
 
-  metrics-computation-engine:
-    image: ghcr.io/agntcy/mce:1.2.1
-    ports:
-      - "8001:8000"
-    environment:
-      - API_BASE_URL=http://mce-api-layer:8080
-      - LLM_BASE_MODEL_URL=${AZURE_OPENAI_ENDPOINT:-${OPENAI_ENDPOINT}}
-      - LLM_MODEL_NAME=${AZURE_OPENAI_DEPLOYMENT:-${OPENAI_MODEL_NAME}}
-      - LLM_API_KEY=${AZURE_OPENAI_API_KEY:-${OPENAI_API_KEY}}
-    depends_on:
-      mce-api-layer:
-        condition: service_healthy
+  # metrics-computation-engine:
+  #   image: ghcr.io/agntcy/mce:1.2.1
+  #   ports:
+  #     - "8001:8000"
+  #   environment:
+  #     - API_BASE_URL=http://mce-api-layer:8080
+  #     - LLM_BASE_MODEL_URL=${AZURE_OPENAI_ENDPOINT:-${OPENAI_ENDPOINT}}
+  #     - LLM_MODEL_NAME=${AZURE_OPENAI_DEPLOYMENT:-${OPENAI_MODEL_NAME}}
+  #     - LLM_API_KEY=${AZURE_OPENAI_API_KEY:-${OPENAI_API_KEY}}
+  #   depends_on:
+  #     mce-api-layer:
+  #       condition: service_healthy

@@ -1,174 +1,85 @@
-/**
- * Copyright AGNTCY Contributors (https://github.com/agntcy)
- * SPDX-License-Identifier: Apache-2.0
- **/
+import { useCallback, useState } from "react";
+import { ResumeUpload } from "./components/ResumeUpload";
+import { JDEditor } from "./components/JDEditor";
+import { ChatPanel } from "./components/ChatPanel";
+import { sendPrompt } from "./api";
+import { generateId } from "./utils";
+import type { Message } from "./types";
 
-import React, { useState, useEffect } from "react"
-import { LOCAL_STORAGE_KEY } from "@/components/Chat/Messages"
+function App() {
+  const [messages, setMessages] = useState<Message[]>([]);
+  const [loading, setLoading] = useState(false);
+  const [jdMarkdown, setJdMarkdown] = useState("");
 
-import ChatArea from "@/components/Chat/ChatArea"
-
-import Navigation from "@/components/Navigation/Navigation"
-import MainArea from "@/components/MainArea/MainArea"
-import Sidebar from "@/components/Sidebar/Sidebar"
-import { ThemeProvider } from "@/contexts/ThemeContext"
-import { Message } from "./types/Message"
-import { useAgentAPI } from "@/hooks/useAgentAPI"
-import { useChatAreaMeasurement } from "@/hooks/useChatAreaMeasurement"
-import { logger } from "./utils/logger"
-import {parseApiError} from "@/utils/const.ts";
-
-const App: React.FC = () => {
-  const [aiReplied, setAiReplied] = useState<boolean>(false)
-  const [buttonClicked, setButtonClicked] = useState<boolean>(false)
-  const [currentUserMessage, setCurrentUserMessage] = useState<string>("")
-  const [agentResponse, setAgentResponse] = useState<string>("")
-  const [isAgentLoading, setIsAgentLoading] = useState<boolean>(false)
-  const [messages, setMessages] = useState<Message[]>([])
-  const { sendMessageWithCallback } = useAgentAPI()
-
-  const {
-    height: chatHeight,
-    isExpanded,
-    chatRef,
-  } = useChatAreaMeasurement({
-    debounceMs: 100,
-  })
-
-  useEffect(() => {
-    const storedMessages = localStorage.getItem(LOCAL_STORAGE_KEY)
-    if (storedMessages) {
-      setMessages(JSON.parse(storedMessages))
+  const handleSend = useCallback(async (prompt: string) => {
+    setMessages((prev) => [
+      ...prev,
+      { id: generateId(), role: "user", content: prompt, timestamp: Date.now() },
+    ]);
+    setLoading(true);
+    try {
+      const { response } = await sendPrompt(prompt);
+      setMessages((prev) => [
+        ...prev,
+        { id: generateId(), role: "assistant", content: response, timestamp: Date.now() },
+      ]);
+    } catch (e) {
+      const err = e instanceof Error ? e.message : "Request failed";
+      setMessages((prev) => [
+        ...prev,
+        { id: generateId(), role: "assistant", content: `Error: ${err}`, timestamp: Date.now() },
+      ]);
+    } finally {
+      setLoading(false);
     }
-  }, [])
+  }, []);
 
-  useEffect(() => {
-    localStorage.setItem(LOCAL_STORAGE_KEY, JSON.stringify(messages))
-  }, [messages])
-
-  const chatHeightValue = currentUserMessage || agentResponse ? chatHeight : 76
-
-  const handleApiResponse = (response: string, isError: boolean = false) => {
-    setAgentResponse(response)
-    setIsAgentLoading(false)
-
-    setMessages((prev) => {
-      const updated = [...prev]
-      updated[updated.length - 1] = {
-        ...updated[updated.length - 1],
-        content: response,
-        animate: !isError,
-      }
-      return updated
-    })
-  }
-
-  const handleUserInput = (query: string) => {
-    setCurrentUserMessage(query)
-    setIsAgentLoading(true)
-  }
-
-  const handleDropdownSelect = async (query: string) => {
-      setCurrentUserMessage(query)
-      setIsAgentLoading(true)
-
-      try {
-        await sendMessageWithCallback(query, setMessages, {
-          onStart: () => {
-            setButtonClicked(true)
-          },
-
-          onSuccess: (response) => {
-            setAiReplied(true)
-            handleApiResponse(response, false)
-          },
-
-          onError: (error) => {
-            if (import.meta.env.DEV) {
-              logger.apiError("/agent/prompt", error)
-            }
-
-            const { status, message } = parseApiError(error)
-
-            // 4xx errors
-            if (status && status >= 400 && status < 500) {
-              handleApiResponse(
-                  `HTTP ${status} - ${message}` ||
-                  "Sorry, I encountered an error. Please try again later",
-                  true
-              )
-              return
-            }
-
-            // all other errors
-            handleApiResponse(message, true)
-            return
-          },
-        })
-      } catch (error) {
-        if (import.meta.env.DEV) {
-          logger.apiError("/agent/prompt", error)
-        }
-
-        handleApiResponse(
-          "Sorry, I encountered an error. Please try again later.",
-          true
-        )
-      }
-    }
-
-  const handleClearConversation = () => {
-    setMessages([])
-    setCurrentUserMessage("")
-    setAgentResponse("")
-    setIsAgentLoading(false)
-    setButtonClicked(false)
-    setAiReplied(false)
-  }
+  const handleIngest = useCallback(
+    (resumeText: string) => {
+      const prompt = `Here is a resume. Extract and store it.\n\n${resumeText}`;
+      handleSend(prompt);
+    },
+    [handleSend]
+  );
 
   return (
-    <ThemeProvider>
-      <div className="flex h-screen w-screen flex-col overflow-hidden bg-app-background">
-        <Navigation />
-
-        <div className="flex flex-1 overflow-hidden">
-          <Sidebar />
-
-          <div className="flex min-w-0 flex-1 flex-col border-l border-action-background bg-app-background">
-            <div className="relative flex-grow">
-              <MainArea
-                buttonClicked={buttonClicked}
-                setButtonClicked={setButtonClicked}
-                aiReplied={aiReplied}
-                setAiReplied={setAiReplied}
-                chatHeight={chatHeightValue}
-                isExpanded={isExpanded}
-              />
+    <div className="min-h-screen bg-surface-850/95 bg-grid-pattern bg-[size:64px_64px]">
+      <header className="border-b border-surface-700/80 bg-surface-850/80 backdrop-blur-xl">
+        <div className="mx-auto flex max-w-7xl items-center justify-between px-6 py-5">
+          <div className="flex items-center gap-3">
+            <div className="flex h-11 w-11 items-center justify-center rounded-xl bg-gradient-to-br from-accent-blue to-accent-cyan text-white shadow-lg shadow-accent-blue/20">
+              <span className="text-xl font-bold">C</span>
             </div>
-
-            <div className="flex min-h-[76px] w-full flex-none flex-col items-center justify-center gap-0 bg-overlay-background p-0 md:min-h-[96px]">
-              <ChatArea
-                messages={messages}
-                setMessages={setMessages}
-                setButtonClicked={setButtonClicked}
-                setAiReplied={setAiReplied}
-                isBottomLayout={true}
-                showCoffeeDropdown={true}
-                onDropdownSelect={handleDropdownSelect}
-                onUserInput={handleUserInput}
-                onApiResponse={handleApiResponse}
-                onClearConversation={handleClearConversation}
-                currentUserMessage={currentUserMessage}
-                agentResponse={agentResponse}
-                isAgentLoading={isAgentLoading}
-                chatRef={chatRef}
-              />
+            <div>
+              <h1 className="text-xl font-bold tracking-tight text-zinc-100">Corto</h1>
+              <p className="text-sm text-zinc-500">Recruitment AI · Resumes, JD, Interviews</p>
             </div>
           </div>
         </div>
-      </div>
-    </ThemeProvider>
-  )
+      </header>
+
+      <main className="mx-auto max-w-7xl px-6 py-8">
+        <div className="grid gap-8 lg:grid-cols-12">
+          <aside className="space-y-6 lg:col-span-4">
+            <ResumeUpload
+              onExtracted={() => {}}
+              onIngestClick={handleIngest}
+            />
+            <JDEditor value={jdMarkdown} onChange={setJdMarkdown} />
+          </aside>
+          <section className="lg:col-span-8">
+            <ChatPanel
+              messages={messages}
+              loading={loading}
+              onSend={handleSend}
+              jdMarkdown={jdMarkdown}
+              onQuickAction={handleSend}
+            />
+          </section>
+        </div>
+      </main>
+    </div>
+  );
 }
 
-export default App
+export default App;

@@ -11,6 +11,18 @@ TRANSPORT_SERVER_ENDPOINT = os.getenv("TRANSPORT_SERVER_ENDPOINT", "http://local
 FARM_AGENT_HOST = os.getenv("FARM_AGENT_HOST", "localhost")
 FARM_AGENT_PORT = int(os.getenv("FARM_AGENT_PORT", "9999"))
 
+# Resume Mastermind agent
+RESUME_MASTERMIND_HOST = os.getenv("RESUME_MASTERMIND_HOST", "localhost")
+RESUME_MASTERMIND_PORT = int(os.getenv("RESUME_MASTERMIND_PORT", "9991"))
+
+# Job Description Mastermind agent
+JOB_DESCRIPTION_MASTERMIND_HOST = os.getenv("JOB_DESCRIPTION_MASTERMIND_HOST", "localhost")
+JOB_DESCRIPTION_MASTERMIND_PORT = int(os.getenv("JOB_DESCRIPTION_MASTERMIND_PORT", "9992"))
+
+# Interview Mastermind agent
+INTERVIEW_MASTERMIND_HOST = os.getenv("INTERVIEW_MASTERMIND_HOST", "localhost")
+INTERVIEW_MASTERMIND_PORT = int(os.getenv("INTERVIEW_MASTERMIND_PORT", "9993"))
+
 LLM_MODEL = os.getenv("LLM_MODEL", "")
 ## Oauth2 OpenAI Provider
 OAUTH2_CLIENT_ID= os.getenv("OAUTH2_CLIENT_ID", "")
