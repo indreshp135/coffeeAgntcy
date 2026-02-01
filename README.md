@@ -1,65 +1,156 @@
-![Screenshot](assets/coffee_agntcy.png)
+# Match HIRED 🚀
 
-[![Release](https://img.shields.io/github/v/release/agntcy/repo-template?display_name=tag)](CHANGELOG.md)
-[![Contributor-Covenant](https://img.shields.io/badge/Contributor%20Covenant-2.1-fbab2c.svg)](CODE_OF_CONDUCT.md)
+**Match HIRED** is a multi-agent AI-powered recruitment platform designed to eliminate inefficiencies in startup hiring. By automating resume screening, interviews, and candidate ranking, Match HIRED helps startups reclaim time, reduce hiring risk, and make better talent decisions — with **zero upfront cost** and **purely performance-based pricing**.
 
-## About the Project
+> **Swipe left on bad hires. Swipe right on the future of recruitment.**
 
-**CoffeeAgntcy** is a reference implementation based on a fictitious coffee company to help developers understand how components in the **AGNTCY Internet of Agents** ecosystem can work together. It gives examples of the components of AGNTCY working together as a **Multi-agent System (MAS)**.
+---
+## ❌ Problem Statement
 
-This reference agentic application demonstrates how to:
+Startups are losing their most valuable assets:
 
-- How **SLIM** enables **request-reply** , **unicast (fire & forget)** and **group communication** patterns.
-- How tools and transports can be reused across agent implementations (e.g., **SLIM**, **NATS**, **MCP**)
-- How protocol-agnostic bridges and clients interconnect modular agents
-- How to orchestrate agents using **LangGraph** for structured, stateful workflows with streaming support
-- How to write **A2A** client and server agents
-- How to integrate data sources (e.g., weather services via **MCP**)
-- How to extend or swap agents modularly using AGNTCY tooling
-- How to enable observability using **AGNTCY Observe SDK**
-- How to enable identity using **AGNTCY Identity Service SDK**
+### ⏱ Time
+- Founders spend **~40% of their time** screening irrelevant resumes instead of building products.
+
+### 💸 Cash
+- Average tech hire costs **$20,000+**.
+- A **bad hire** can cost over **$250,000** in lost salary, productivity, and opportunity.
+
+### 🔁 Broken Hiring Model
+- Traditional recruiters charge **20–30% upfront fees**.
+- No accountability.
+- No alignment with startup success.
 
 ---
 
-### Setups Included
+## ✨ Solution Overview
 
-We currently provide two setups you can run to see how components from AGNTCY work together — one simple two-agent use case and the other a more complex MAS:
+Match HIRED replaces manual hiring pipelines with an **AI-driven, multi-agent recruitment system** that:
 
-- **Corto**:  
-  A two-agent, ready-to-run setup that highlights core agent interactions using agent-to-agent (A2A) messaging via configurable transports(default: AGNTCY's SLIM). Agents are orchestrated within a LangGraph. It also shows how to enable observability using Observe SDK.
+- Automatically screens every candidate
+- Conducts AI-led interviews
+- Scores and ranks candidates objectively
+- Charges **only when a successful hire is made**
 
-  👉 [View the Corto README](coffeeAGNTCY/coffee_agents/corto)
-
-- **Lungo**:  
-  A more advanced setup that will evolve over time as we mature components. There are two setups: 1) pub/sub A2A over NATS as default transport along with streaming support, and 2) group communication over SLIM as default along with streaming support. Agents are structured as directed LangGraphs with A2A communication using configurable transports. It includes an MCP weather-aware farm that fetches live data, observability via the Observe SDK, identity, and a group communication pattern with specialized agents (farms, shipper, accountant) that collaborate to fulfill coffee orders.
-
-  👉 [View the Lungo README](coffeeAGNTCY/coffee_agents/lungo)
+**Zero Upfront Cost. Zero Risk. Pure Performance.**
 
 ---
 
-### Built With
+## 🔄 How It Works
 
-- [AGNTCY App SDK](https://github.com/agntcy/app-sdk) = v0.4.1
-- [SLIM](https://github.com/agntcy/slim) = v0.6.1
-- [NATS](https://github.com/nats-io/nats-server) = v2.11.8
-- [A2A](https://github.com/a2aproject/a2a-python) = v0.3.0
-- [MCP](https://github.com/modelcontextprotocol/python-sdk) >= v1.10.0
-- [LangGraph](https://github.com/langchain-ai/langgraph) >= v0.4.1
-- [Observe SDK](https://github.com/agntcy/observe) = 1.0.24
-- [AGNTCY Identity Service SDK](https://github.com/agntcy/identity-service) = 0.0.6
+### Step 1: CONNECT
+- Employers post a Job Description (JD)
+- AI instantly analyzes applicants against the ideal profile
+- Candidates receive mock interviews and personalized feedback
+
+### Step 2: SHORTLIST
+- Candidates are screened, scored, and ranked
+- Employers receive a **hyper-curated shortlist** of top **N** candidates
+- Includes strengths, weaknesses, and interview insights
+
+### Step 3: SWIPE & HIRE
+- Employers swipe through top candidates
+- Hire with confidence
+- Pay **only after successful onboarding**
 
 ---
 
-## Contributing
+## 🛠 System Architecture
 
-This is a developer-facing reference repo. If you're building agentic systems—or interested in shaping the future of distributed agents—we'd love your feedback, contributions, or collaboration. Contributions are what make the open-source community such an amazing place to learn, inspire, and create. For detailed contributing guidelines, please see [CONTRIBUTING.md](CONTRIBUTING.md).
+Match HIRED is built as a **Multi-Agent System (A2A)** coordinated through a central hub called **The Exchange**.
+
+<p align="center">
+  <img src="architecture/MAS%20(1).png" alt="Match HIRED Multi-Agent Architecture" width="850"/>
+</p>
+
+**The Exchange** orchestrates communication, task routing, and decision flow between specialized agents.
 
 ---
 
-## License
+## 🤖 Multi-Agent Design
 
-Distributed under the Apache-2.0 License. See [LICENSE](LICENSE) for more information.
+### 🧠 The Exchange (Core Orchestrator)
+- Coordinates all agent interactions
+- Routes events and messages
+- Sends interview invitations and notifications
 
-## Acknowledgements
+### 👤 Candidate Agent
+- Parses resumes (PDF/DOC)
+- Extracts skills, experience, and profile metadata
+- Performs fuzzy skill matching and ranking
 
-- The [AGNTCY](https://github.com/agntcy) project.
+### 💼 Job Agent
+- Parses Job Descriptions
+- Extracts required skills and role expectations
+- Computes candidate–job fit scores
+
+### 🎤 Interview Agent
+- Generates personalized interview questions
+- Conducts **10-minute AI-led interviews**
+- Scores candidates based on responses, confidence, and relevance
+
+---
+
+## 📈 System Flow
+
+### 1️⃣ Onboarding & Intelligence
+- Employers and candidates register via their portals
+- Profiles and job posts are ingested into databases
+- Embeddings are generated for semantic matching
+
+### 2️⃣ Event Routing (The Exchange)
+- Agents communicate via the Exchange Hub
+- Interview links are sent automatically
+- State and progress are centrally managed
+
+### 3️⃣ Evaluation & Decision
+- Live interview scoring
+- Final Score Matrix generated
+- Employers review candidates via dashboard and **swipe to hire**
+
+---
+
+## 🧪 Technical Stack
+
+### 🧠 Large Language Models
+- **Gemini 2.5 Flash**
+- **DeepSeek-R1-0528**
+- **Qwen3** (GGUF quantized, local inference)
+
+### 🗂 Vector Database
+- **ChromaDB** — embeddings, similarity search, ranking
+
+### ⚙ Infrastructure
+- **Node.js** backend
+- **SendGrid API** — interview invitations & notifications
+- **Android-based proctoring** — cheat detection during interviews
+
+---
+
+## 💰 Business Model
+
+| Feature | Traditional Recruiters | Match HIRED |
+|------|----------------------|-------------|
+| Risk | High (pay regardless) | **ZERO** |
+| Cost | 20–30% upfront | **10–15% success fee** |
+| Incentive | Quantity over quality | **Best hire wins** |
+| Outcome | Misaligned | **Win–Win Partnership** |
+
+---
+
+## 👥 Team
+
+- **Indresh Pradeepkumar** – Software Developer  
+- **Gokul Thirumurugan** – ML Engineer  
+- **Srivatsan Sarvesan** – ML Engineer  
+- **Shashank Reddyhalli Rakesh** – ML Engineer  
+
+---
+
+## 🌟 Vision
+
+We’re not just fixing hiring — **we’re redefining it**.
+
+Match HIRED aims to become the **default hiring OS for startups**: fast, fair, intelligent, and aligned with success.
+
+> **Build teams, not pipelines.**
