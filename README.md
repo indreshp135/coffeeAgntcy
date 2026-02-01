@@ -63,18 +63,19 @@ Match HIRED replaces manual hiring pipelines with an **AI-driven, multi-agent re
 
 ### 👤 Candidate Profile Flow
 <p align="center">
-  <img src="architectures/Candidate_profile.jpeg" alt="Candidate Profile 1" width="250"/>
-  <img src="architectures/Candidate_profile_2.jpeg" alt="Candidate Profile 2" width="250"/>
-  <img src="architectures/Candidate_profile_3.jpeg" alt="Candidate Profile 3" width="250"/>
+  <img src="architectures/Candidate_profile.jpeg" alt="Candidate Profile 1" width="650"/><br/>
+  <img src="architectures/Candidate_profile_2.jpeg" alt="Candidate Profile 2" width="650"/><br/>
+  <img src="architectures/Candidate_profile_3.jpeg" alt="Candidate Profile 3" width="650"/>
 </p>
-<p align="center"><em>Candidate profile creation, skill extraction, and AI-driven evaluation</em></p>
-
+<p align="center">
+  <em>Candidate profile creation, skill extraction, and AI-driven evaluation</em>
+</p>
 ---
 
 ### 🎤 Live AI Interview & Opportunities
 <p align="center">
-  <img src="architectures/LiveInterview.jpeg" alt="Live AI Interview" width="380"/>
-  <img src="architectures/Opportunities_1.jpeg" alt="Opportunities View 1" width="380"/>
+  <img src="architectures/LiveInterview.jpeg" alt="Live AI Interview" width="650"/>
+  <img src="architectures/Opportunities_1.jpeg" alt="Opportunities View 1" width="650"/>
 </p>
 <p align="center"><em>AI-led interview experience and personalized opportunity recommendations</em></p>
 
