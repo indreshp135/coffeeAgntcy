@@ -1,8 +1,13 @@
 # Match HIRED 🚀
 
 **Match HIRED** is a multi-agent AI-powered recruitment platform designed to eliminate inefficiencies in startup hiring. By automating resume screening, interviews, and candidate ranking, Match HIRED helps startups reclaim time, reduce hiring risk, and make better talent decisions — with **zero upfront cost** and **purely performance-based pricing**.
-
 > **Swipe left on bad hires. Swipe right on the future of recruitment.**
+
+### Technical Stack Overview
+<figure align="center">
+  <img src="architectures/Techstack_diagram.jpeg" alt="Match HIRED Technical Stack" width="850"/>
+</figure>
+
 
 ---
 ## ❌ Problem Statement
@@ -54,17 +59,44 @@ Match HIRED replaces manual hiring pipelines with an **AI-driven, multi-agent re
 - Pay **only after successful onboarding**
 
 ---
+## 🎬 Demo
 
+### 👤 Candidate Profile Flow
+<p align="center">
+  <img src="demo/Candidate_profile.jpeg" alt="Candidate Profile 1" width="250"/>
+  <img src="demo/Candidate_profile_2.jpeg" alt="Candidate Profile 2" width="250"/>
+  <img src="demo/Candidate_profile_3.jpeg" alt="Candidate Profile 3" width="250"/>
+</p>
+<p align="center"><em>Candidate profile creation, skill extraction, and AI-driven evaluation</em></p>
+
+---
+
+### 🎤 Live AI Interview & Opportunities
+<p align="center">
+  <img src="demo/LiveInterview.jpeg" alt="Live AI Interview" width="380"/>
+  <img src="demo/Opportunities_1.jpeg" alt="Opportunities View 1" width="380"/>
+</p>
+<p align="center"><em>AI-led interview experience and personalized opportunity recommendations</em></p>
+
+<p align="center">
+  <img src="demo/Opportunities_2.jpeg" alt="Opportunities View 2" width="380"/>
+</p>
+<p align="center"><em>Ranked job opportunities based on interview performance</em></p>
+
+---
+
+### 📱 Android Proctoring & Interview App
+<p align="center">
+  <img src="demo/android_1.jpeg" alt="Android Interview App 1" width="300"/>
+  <img src="demo/android_2.jpeg" alt="Android Interview App 2" width="300"/>
+</p>
+<p align="center"><em>Android-based interview interface with integrated proctoring</em></p>
+
+---
 ## 🛠 System Architecture & Engine Diagrams
 
 Match HIRED is built as a **Multi-Agent System (A2A)** coordinated through a central hub called **The Exchange**.
 **The Exchange** orchestrates communication, task routing, and decision flow between specialized agents.
-
-### Technical Stack Overview
-<figure align="center">
-  <img src="architectures/Techstack_diagram.jpeg" alt="Match HIRED Technical Stack" width="850"/>
-  <figcaption>MatchHIRED Technical Stack</figcaption>
-</figure>
 
 ### Engine Components
 <figure align="center">
@@ -87,7 +119,6 @@ Match HIRED is built as a **Multi-Agent System (A2A)** coordinated through a cen
 ### Multi-Agent Architecture
 <figure align="center">
   <img src="architectures/MAS.png" alt="Match HIRED Multi-Agent Architecture" width="850"/>
-  <figcaption>MatchHIRED Multi-Agent Architecture</figcaption>
 </figure>
 
 ### 🧠 The Exchange (Core Orchestrator)
