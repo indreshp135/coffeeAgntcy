@@ -334,6 +334,23 @@ export async function employerPublishJob(jobId: number): Promise<void> {
   }
 }
 
+export interface EmployerFinalizeResponse {
+  message: string;
+  top_3: string[];
+}
+
+export async function employerFinalizeJob(jobId: number): Promise<EmployerFinalizeResponse> {
+  const res = await fetch(`${API_BASE}/employer/jobs/${jobId}/finalize`, {
+    method: "POST",
+    headers: authHeaders(),
+  });
+  if (!res.ok) {
+    const err = await res.json().catch(() => ({ detail: res.statusText }));
+    throw new Error(err.detail || "Finalize failed");
+  }
+  return res.json();
+}
+
 // ---------- Interview (public, no auth) ----------
 export interface InterviewJoinResponse {
   job_id: number;
@@ -352,6 +369,83 @@ export async function interviewJoin(token: string): Promise<InterviewJoinRespons
   if (!res.ok) {
     const err = await res.json().catch(() => ({ detail: res.statusText }));
     throw new Error(err.detail || "Invalid or expired interview link.");
+  }
+  return res.json();
+}
+
+export async function interviewStart(token: string): Promise<{ message: string }> {
+  const res = await fetch(`${API_BASE}/interview/start`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ token }),
+  });
+  if (!res.ok) {
+    const err = await res.json().catch(() => ({ detail: res.statusText }));
+    throw new Error(err.detail || "Failed to start interview.");
+  }
+  return res.json();
+}
+
+export interface InterviewChatResponse {
+  reply: string;
+}
+
+export async function interviewChat(
+  token: string,
+  transcriptSoFar: string,
+  candidateMessage: string
+): Promise<InterviewChatResponse> {
+  const res = await fetch(`${API_BASE}/interview/chat`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({
+      token,
+      transcript_so_far: transcriptSoFar,
+      candidate_message: candidateMessage,
+    }),
+  });
+  if (!res.ok) {
+    const err = await res.json().catch(() => ({ detail: res.statusText }));
+    throw new Error(err.detail || "Failed to get interviewer response.");
+  }
+  return res.json();
+}
+
+export interface InterviewCompleteResponse {
+  message: string;
+  score: number | null;
+}
+
+export async function interviewComplete(
+  token: string,
+  transcript: string
+): Promise<InterviewCompleteResponse> {
+  const res = await fetch(`${API_BASE}/interview/complete`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ token, transcript }),
+  });
+  if (!res.ok) {
+    const err = await res.json().catch(() => ({ detail: res.statusText }));
+    throw new Error(err.detail || "Failed to complete interview.");
+  }
+  return res.json();
+}
+
+export async function interviewUploadRecording(
+  token: string,
+  file: File
+): Promise<{ recording_url: string }> {
+  const form = new FormData();
+  form.append("token", token);
+  form.append("file", file);
+  const res = await fetch(`${API_BASE}/interview/upload-recording`, {
+    method: "POST",
+    body: form,
+  });
+  if (!res.ok) {
+    const err = await res.json().catch(() => ({ detail: res.statusText }));
+    throw new Error(err.detail || "Failed to upload recording.");
   }
   return res.json();
 }

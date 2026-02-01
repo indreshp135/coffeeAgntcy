@@ -39,9 +39,10 @@ def _send(to_email: str, subject: str, html_content: str, plain_content: str = "
             html_content=Content("text/html", html_content),
         )
         client.send(message)
+        logger.info("Email sent to %s subject=%r", to_email, subject)
         return True
     except Exception as e:
-        logger.exception("SendGrid send failed: %s", e)
+        logger.exception("SendGrid send failed to %s subject=%r: %s", to_email, subject, e)
         return False
 
 
@@ -53,6 +54,7 @@ def send_job_opportunity_email(
     profile_summary: str,
 ) -> bool:
     """Email candidate: you have a job opportunity (job + profile). No interview link yet."""
+    logger.debug("send_job_opportunity_email to=%s job_title=%r", to_email, job_title)
     subject = f"Job opportunity: {job_title}"
     # Simple HTML template
     jd_html = (job_description_md or "").replace("\n", "<br>\n")
@@ -82,6 +84,7 @@ def send_interview_link_email(
     interview_link: str,
 ) -> bool:
     """Email candidate: interview link (after right swipe)."""
+    logger.debug("send_interview_link_email to=%s job_title=%r", to_email, job_title)
     subject = f"Your interview link: {job_title}"
     html = f"""
     <!DOCTYPE html>

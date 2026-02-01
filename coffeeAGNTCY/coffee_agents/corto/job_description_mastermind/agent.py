@@ -7,6 +7,9 @@ from uuid import uuid4
 from typing import Any
 
 from agntcy_app_sdk.factory import AgntcyFactory
+
+# In-memory store for interview results (job_id -> payload) for retrieval / reporting
+_interview_results_store: dict[int, dict[str, Any]] = {}
 from agntcy_app_sdk.semantic.a2a.protocol import A2AProtocol
 from a2a.types import (
     SendMessageRequest,
@@ -65,15 +68,38 @@ class JobDescriptionMastermindAgent:
 
     async def ainvoke(self, payload: str) -> dict[str, Any]:
         """
-        payload: JSON with job_description and optionally schedule_interview (bool).
-        1) Call Resume Mastermind best_match with job_description.
-        2) If schedule_interview, call Interview Mastermind with job_description and top candidate summary.
+        payload: JSON with either:
+        - job_description (+ optionally schedule_interview): best_match + interview questions.
+        - action "store_interview_results": store all 10 candidates with recordings and top 3 highlighted.
         """
         try:
             data = json.loads(payload) if isinstance(payload, str) else payload
         except json.JSONDecodeError:
             return {
-                "error": "Invalid JSON. Provide job_description and optionally schedule_interview (boolean)."
+                "error": "Invalid JSON. Provide job_description or action store_interview_results."
+            }
+
+        if data.get("action") == "store_interview_results":
+            job_id = data.get("job_id")
+            job_title = data.get("job_title", "")
+            candidates = data.get("candidates", [])
+            top_3_ids = data.get("top_3_ids", [])
+            if job_id is None:
+                return {"error": "Missing job_id for store_interview_results."}
+            _interview_results_store[int(job_id)] = {
+                "job_id": job_id,
+                "job_title": job_title,
+                "candidates": candidates,
+                "top_3_ids": top_3_ids,
+            }
+            logger.info(
+                "Stored interview results for job_id=%s: %d candidates, top_3=%s",
+                job_id,
+                len(candidates),
+                top_3_ids,
+            )
+            return {
+                "result": f"Stored {len(candidates)} candidates for job '{job_title}' (job_id={job_id}) with top 3 highlighted."
             }
 
         jd = data.get("job_description", "")

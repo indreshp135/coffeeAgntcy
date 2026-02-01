@@ -64,7 +64,7 @@ def _parse_with_structured_output(text: str, SCHEMA_JSON: dict) -> Optional[dict
         ]
         try:
             result = invoke_structured_with_retry(messages, ResumeExtractOutput)
-            return {"resume": result.resume}
+            return result.to_resume_dict()
         except Exception as e:
             print("❌ Structured resume parse failed:", e)
             return None

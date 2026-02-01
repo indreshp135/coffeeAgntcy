@@ -19,17 +19,96 @@ logger = logging.getLogger("corto.common.llm")
 # ---------------------------------------------------------------------------
 
 
-class ResumeExtractOutput(BaseModel):
-    """Root object for resume extraction: single key 'resume' with nested data."""
+class Address(BaseModel):
+    """Address fields for personal information."""
 
-    resume: dict[str, Any] = Field(description="Resume object with personal_information, education, work_experience, skills, summary, additional_details")
+    street: str = Field(default="", description="Street address")
+    city: str = Field(default="", description="City")
+    state: str = Field(default="", description="State or region")
+    zip_code: str = Field(default="", description="ZIP or postal code")
+    country: str = Field(default="", description="Country")
+
+
+class PersonalInformation(BaseModel):
+    """Personal info: name, contact, address."""
+
+    name: str = Field(default="", description="Full name")
+    email: str = Field(default="", description="Email address")
+    phone: str = Field(default="", description="Phone number")
+    address: Address = Field(default_factory=Address, description="Full address")
+
+
+class EducationEntry(BaseModel):
+    """One education record."""
+
+    degree: str = Field(default="", description="Degree (e.g. BS, MS)")
+    major: str = Field(default="", description="Major or field of study")
+    school: str = Field(default="", description="School or institution name")
+    graduation_year: int | None = Field(default=None, description="Graduation year")
+
+
+class WorkExperienceEntry(BaseModel):
+    """One work experience record."""
+
+    position: str = Field(default="", description="Job title or position")
+    company: str = Field(default="", description="Company name")
+    start_date: str = Field(default="", description="Start date")
+    end_date: str | None = Field(default=None, description="End date or null if current")
+    responsibilities: list[str] = Field(default_factory=list, description="Key responsibilities")
+
+
+class AdditionalDetails(BaseModel):
+    """Languages, certifications, interests."""
+
+    languages: list[str] = Field(default_factory=list, description="Languages spoken")
+    certifications: list[str] = Field(default_factory=list, description="Certifications")
+    interests: list[str] = Field(default_factory=list, description="Interests or hobbies")
+
+
+class ResumeExtractOutput(BaseModel):
+    """Structured resume extraction: all profile fields so the LLM fills everything."""
+
+    personal_information: PersonalInformation = Field(
+        default_factory=PersonalInformation,
+        description="Name, email, phone, address",
+    )
+    education: list[EducationEntry] = Field(
+        default_factory=list,
+        description="Education entries: degree, major, school, graduation_year",
+    )
+    work_experience: list[WorkExperienceEntry] = Field(
+        default_factory=list,
+        description="Work history: position, company, start_date, end_date, responsibilities",
+    )
+    skills: list[str] = Field(default_factory=list, description="Skills list")
+    summary: str = Field(default="", description="Professional summary")
+    additional_details: AdditionalDetails = Field(
+        default_factory=AdditionalDetails,
+        description="Languages, certifications, interests",
+    )
+
+    def to_resume_dict(self) -> dict[str, Any]:
+        """Return the shape expected by resume_schema_to_profile: {\"resume\": {...}}."""
+        return {"resume": self.model_dump()}
 
 
 class JobDescriptionExtractOutput(BaseModel):
     """Root object for job description extraction: single key 'job_description'."""
 
     job_description: dict[str, Any] = Field(
-        description="Job description object with company_information, job_details, summary, responsibilities, requirements"
+        description="Job description object with company_information, job_details, summary, responsibilities, requirements in markdown format"
+    )
+
+
+class GenerateJDOutput(BaseModel):
+    """Output for AI-generated job description: title, markdown, and structured schema."""
+
+    title: str = Field(description="Short job title, e.g. 'Senior Backend Engineer'")
+    description_md: str = Field(
+        description="Full job description in Markdown: company intro, role summary, responsibilities, requirements, compensation, how to apply"
+    )
+    job_description: dict[str, Any] = Field(
+        description="Structured job description with company_information, job_details, summary, responsibilities, requirements, etc."
     )
 
 

@@ -8,6 +8,7 @@ import {
   employerGetJob,
   employerUpdateJob,
   employerPublishJob,
+  employerFinalizeJob,
   type JobSummary,
 } from "../api";
 import { cn } from "../utils";
@@ -24,6 +25,7 @@ export function EmployerPortal() {
   const [creating, setCreating] = useState(false);
   const [selectedId, setSelectedId] = useState<number | null>(null);
   const [publishingId, setPublishingId] = useState<number | null>(null);
+  const [finalizingId, setFinalizingId] = useState<number | null>(null);
 
   const loadJobs = useCallback(async () => {
     setLoading(true);
@@ -41,12 +43,12 @@ export function EmployerPortal() {
     loadJobs();
   }, [loadJobs]);
 
-  const handleGenerateJd = async (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!createPrompt.trim()) return;
+  const handleGenerateJd = useCallback(async () => {
+    const prompt = createPrompt.trim();
+    if (!prompt) return;
     setGenerating(true);
     try {
-      const res = await employerGenerateJd(createPrompt.trim());
+      const res = await employerGenerateJd(prompt);
       setTitle(res.title);
       setDescriptionMd(res.description_md);
       setGeneratedSchema(res.job_description);
@@ -55,7 +57,7 @@ export function EmployerPortal() {
     } finally {
       setGenerating(false);
     }
-  };
+  }, [createPrompt]);
 
   const handleCreateJob = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -87,6 +89,20 @@ export function EmployerPortal() {
     }
   };
 
+  const handleFinalize = async (id: number) => {
+    setFinalizingId(id);
+    try {
+      const res = await employerFinalizeJob(id);
+      await loadJobs();
+      alert(`Job finalized. Top 3: ${res.top_3.join(", ") || "—"}`);
+    } catch (err) {
+      console.error(err);
+      alert(err instanceof Error ? err.message : "Finalize failed");
+    } finally {
+      setFinalizingId(null);
+    }
+  };
+
   return (
     <div className="mx-auto max-w-4xl space-y-8">
       <div className="flex flex-wrap gap-2 border-b border-surface-600 pb-4">
@@ -115,41 +131,49 @@ export function EmployerPortal() {
       </div>
 
       {section === "create" && (
-        <div className="rounded-2xl border border-surface-600 bg-surface-800/80 overflow-hidden">
-          <div className="border-b border-surface-600 px-5 py-4">
-            <h2 className="font-semibold text-zinc-100">Post a job</h2>
-            <p className="text-sm text-zinc-400">Enter title and job description (Markdown). We extract skills and notify top 5 candidates.</p>
-          </div>
-          <form onSubmit={handleCreateJob} className="p-5 space-y-4">
-            <div className="rounded-xl border border-surface-600 bg-surface-850/80 p-4 space-y-3">
-              <div className="flex items-center gap-2 text-accent-amber/90">
-                <Sparkles className="h-5 w-5" />
-                <span className="font-medium text-zinc-200">Generate with AI</span>
-              </div>
-              <p className="text-sm text-zinc-400">
-                Describe the role in a few words (e.g. &quot;Senior Python backend, remote, fintech&quot;) and we&apos;ll draft the full JD.
-              </p>
-              <div className="flex gap-2">
-                <input
-                  type="text"
-                  value={createPrompt}
-                  onChange={(e) => setCreatePrompt(e.target.value)}
-                  onKeyDown={(e) => e.key === "Enter" && (e.preventDefault(), handleGenerateJd(e as unknown as React.FormEvent))}
-                  placeholder="e.g. Senior Backend Engineer, remote, 5+ years Python, AWS"
-                  className="flex-1 rounded-lg border border-surface-600 bg-surface-800 px-4 py-2.5 text-sm text-zinc-100 placeholder:text-zinc-500 focus:border-accent-amber/50 focus:outline-none focus:ring-1 focus:ring-accent-amber/30"
-                  disabled={generating}
-                />
-                <button
-                  type="button"
-                  onClick={(e) => handleGenerateJd(e as unknown as React.FormEvent)}
-                  disabled={generating || !createPrompt.trim()}
-                  className="rounded-lg bg-accent-amber/20 px-4 py-2.5 text-sm font-medium text-accent-amber hover:bg-accent-amber/30 disabled:opacity-60 flex items-center gap-2"
-                >
-                  {generating ? <Loader2 className="h-4 w-4 animate-spin" /> : <Sparkles className="h-4 w-4" />}
-                  {generating ? "Generating…" : "Generate"}
-                </button>
-              </div>
+        <>
+          <div className="rounded-2xl border border-surface-600 bg-surface-800/80 overflow-hidden p-5">
+            <div className="flex items-center gap-2 text-accent-amber/90 mb-2">
+              <Sparkles className="h-5 w-5" />
+              <span className="font-semibold text-zinc-200">Generate with AI</span>
             </div>
+            <p className="text-sm text-zinc-400 mb-3">
+              Describe the role in a few words and we&apos;ll draft the full job description (e.g. &quot;Senior Python backend, remote, fintech&quot;).
+            </p>
+            <div className="flex gap-2">
+              <input
+                type="text"
+                value={createPrompt}
+                onChange={(e) => setCreatePrompt(e.target.value)}
+                onKeyDown={(e) => {
+                  if (e.key === "Enter") {
+                    e.preventDefault();
+                    void handleGenerateJd();
+                  }
+                }}
+                placeholder="e.g. Senior Backend Engineer, remote, 5+ years Python, AWS"
+                className="flex-1 rounded-lg border border-surface-600 bg-surface-850 px-4 py-2.5 text-sm text-zinc-100 placeholder:text-zinc-500 focus:border-accent-amber/50 focus:outline-none focus:ring-1 focus:ring-accent-amber/30"
+                disabled={generating}
+                aria-label="Prompt for AI job description"
+              />
+              <button
+                type="button"
+                onClick={() => void handleGenerateJd()}
+                disabled={generating || !createPrompt.trim()}
+                className="rounded-lg bg-accent-amber/20 px-4 py-2.5 text-sm font-medium text-accent-amber hover:bg-accent-amber/30 disabled:opacity-60 flex items-center gap-2 shrink-0"
+              >
+                {generating ? <Loader2 className="h-4 w-4 animate-spin" /> : <Sparkles className="h-4 w-4" />}
+                {generating ? "Generating…" : "Generate"}
+              </button>
+            </div>
+          </div>
+
+          <div className="rounded-2xl border border-surface-600 bg-surface-800/80 overflow-hidden">
+            <div className="border-b border-surface-600 px-5 py-4">
+              <h2 className="font-semibold text-zinc-100">Post a job</h2>
+              <p className="text-sm text-zinc-400">Enter title and job description (Markdown). Use &quot;Generate with AI&quot; above to draft one, or paste your own.</p>
+            </div>
+            <form onSubmit={handleCreateJob} className="p-5 space-y-4">
             <div>
               <label className="block text-sm font-medium text-zinc-300">Job title</label>
               <input
@@ -183,7 +207,8 @@ export function EmployerPortal() {
               {creating ? "Creating…" : "Create job (draft)"}
             </button>
           </form>
-        </div>
+          </div>
+        </>
       )}
 
       {section === "list" && (
@@ -227,7 +252,18 @@ export function EmployerPortal() {
                         </button>
                       )}
                       {job.status === "published" && (
-                        <span className="text-sm text-accent-emerald">Published</span>
+                        <button
+                          type="button"
+                          onClick={() => handleFinalize(job.id)}
+                          disabled={finalizingId === job.id}
+                          className="flex items-center gap-2 rounded-lg bg-accent-amber/20 px-4 py-2 text-sm font-medium text-accent-amber hover:bg-accent-amber/30 disabled:opacity-60"
+                        >
+                          {finalizingId === job.id ? <Loader2 className="h-4 w-4 animate-spin" /> : null}
+                          Finalize (score & send to JD)
+                        </button>
+                      )}
+                      {job.status === "closed" && (
+                        <span className="text-sm text-zinc-500">Closed</span>
                       )}
                     </div>
                   </div>

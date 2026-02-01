@@ -29,7 +29,7 @@ from common.version import get_version_info
 from langchain_core.messages import HumanMessage, SystemMessage
 
 from config.logging_config import setup_logging
-from common.llm import invoke_structured_with_retry, JobDescriptionExtractOutput
+from common.llm import get_llm, invoke_structured_with_retry, GenerateJDOutput, JobDescriptionExtractOutput
 from exchange.agent import ExchangeAgent
 from exchange.services import AgentClient
 from auth.service import AuthService
@@ -175,58 +175,106 @@ async def candidate_upload_resume(
     file: UploadFile = File(...),
 ):
     """Upload resume; extract text, call resume mastermind, store profile + last resume."""
-    suffix = Path(file.filename or "").suffix.lower()
+    user_id = int(user.get("user_id", 0))
+    filename = file.filename or "resume"
+    logger.info("Resume upload started: user_id=%s filename=%s", user_id, filename)
+
+    suffix = Path(filename).suffix.lower()
     if suffix not in ALLOWED_RESUME_EXTENSIONS:
+        logger.warning("Resume upload rejected: unsupported type suffix=%s user_id=%s", suffix, user_id)
         raise HTTPException(
             status_code=400,
             detail=f"Unsupported file type. Allowed: {', '.join(ALLOWED_RESUME_EXTENSIONS)}",
         )
     content = await file.read()
+    size_mb = len(content) / (1024 * 1024)
     if len(content) > MAX_RESUME_SIZE_MB * 1024 * 1024:
+        logger.warning("Resume upload rejected: file too large size_mb=%.2f user_id=%s", size_mb, user_id)
         raise HTTPException(
             status_code=400,
             detail=f"File too large. Max size: {MAX_RESUME_SIZE_MB} MB",
         )
+    logger.debug("Resume upload: extracting text suffix=%s size_bytes=%s user_id=%s", suffix, len(content), user_id)
     try:
         text = _extract_text_pdf(content) if suffix == ".pdf" else _extract_text_docx(content)
     except Exception as e:
         logger.exception("Resume extraction failed: %s", e)
         raise HTTPException(status_code=500, detail=f"Failed to extract text: {e}") from e
+    logger.info("Resume text extracted: user_id=%s text_len=%s", user_id, len(text))
 
+    logger.info("Resume upload: calling resume_ingest user_id=%s text_len=%s", user_id, len(text))
+    print(text)
     result = await agent_client.resume_ingest(text)
-    resume_schema = result.get("resume")
-    profile_data = resume_schema_to_profile(resume_schema or {})
-    agent_profile = result.get("profile") if isinstance(result.get("profile"), dict) else {}
-    for k, v in agent_profile.items():
-        if (profile_data.get(k) in (None, [], {})) and v is not None:
-            profile_data[k] = v
+    print(result)
+    result_keys = list(result.keys()) if isinstance(result, dict) else []
+    logger.info("Resume upload: resume_ingest returned keys=%s user_id=%s", result_keys, user_id)
 
-    data = {
-        k: (profile_data.get(k) if isinstance(profile_data.get(k), list) else []) if k in _LIST_KEYS else profile_data.get(k)
-        for k in _PROFILE_KEYS
-    }
-    profile_autofilled = any(
-        data.get(k) not in (None, [], {}) for k in ("full_name", "email", "summary", "skills")
+    resume_schema = result.get("resume") or {}
+    agent_profile_raw = result.get("profile")
+    logger.info(
+        "Resume upload: resume_schema keys=%s profile type=%s user_id=%s",
+        list(resume_schema.keys()) if isinstance(resume_schema, dict) else type(resume_schema).__name__,
+        type(agent_profile_raw).__name__ if agent_profile_raw is not None else "None",
+        user_id,
     )
-    user_id = int(user.get("user_id", 0))
 
-    async with get_session() as session:
-        row = (await session.execute(select(CandidateProfile).where(CandidateProfile.user_id == user_id))).scalar_one_or_none()
-        if profile_autofilled:
-            if row:
-                for k, v in data.items():
-                    setattr(row, k, v)
-            else:
-                session.add(CandidateProfile(user_id=user_id, **{k: data.get(k) for k in _PROFILE_KEYS}))
-        session.add(ResumeBlob(
-            user_id=user_id,
-            file_name=file.filename or "resume",
-            content_type=file.content_type,
-            file_content=content,
-            extracted_text=text,
-            parsed_schema=resume_schema,
-        ))
-        await session.commit()
+    profile_data = resume_schema_to_profile(resume_schema)
+    profile_data_filled = [k for k in _PROFILE_KEYS if profile_data.get(k) not in (None, [], {})]
+    logger.info("Resume upload: profile_data filled keys=%s user_id=%s", profile_data_filled, user_id)
+
+    agent_profile = agent_profile_raw if isinstance(agent_profile_raw, dict) else {}
+    merged = 0
+    for k, v in agent_profile.items():
+        if v is not None and profile_data.get(k) in (None, [], {}):
+            profile_data[k] = v
+            merged += 1
+    if merged:
+        logger.info("Resume upload: merged %s keys from agent_profile user_id=%s", merged, user_id)
+
+    data = {}
+    for k in _PROFILE_KEYS:
+        v = profile_data.get(k)
+        data[k] = (v if isinstance(v, list) else []) if k in _LIST_KEYS else v
+    profile_autofilled = any(data.get(k) for k in ("full_name", "email", "summary", "skills"))
+    autofill_keys = [k for k in ("full_name", "email", "summary", "skills") if data.get(k)]
+    logger.info(
+        "Resume upload: profile_autofilled=%s autofill_keys=%s user_id=%s",
+        profile_autofilled,
+        autofill_keys,
+        user_id,
+    )
+
+    try:
+        async with get_session() as session:
+            logger.debug("Resume upload: loading CandidateProfile user_id=%s", user_id)
+            row = (await session.execute(select(CandidateProfile).where(CandidateProfile.user_id == user_id))).scalar_one_or_none()
+            logger.info("Resume upload: existing profile row=%s user_id=%s", row is not None, user_id)
+
+            if profile_autofilled:
+                if row:
+                    for k, v in data.items():
+                        setattr(row, k, v)
+                    logger.info("Resume upload: updated CandidateProfile user_id=%s", user_id)
+                else:
+                    session.add(CandidateProfile(user_id=user_id, **data))
+                    logger.info("Resume upload: created CandidateProfile user_id=%s", user_id)
+
+            logger.debug("Resume upload: adding ResumeBlob user_id=%s file_name=%s", user_id, filename)
+            session.add(ResumeBlob(
+                user_id=user_id,
+                file_name=filename,
+                content_type=file.content_type,
+                file_content=content,
+                extracted_text=text,
+                parsed_schema=resume_schema,
+            ))
+            await session.commit()
+            logger.info("Resume upload: commit ok user_id=%s", user_id)
+    except Exception as e:
+        logger.exception("Resume upload: DB failed user_id=%s filename=%s error=%s", user_id, filename, e)
+        raise
+
+    logger.info("Resume upload completed: user_id=%s filename=%s profile_autofilled=%s", user_id, filename, profile_autofilled)
 
     return {
         "message": result.get("result", "Resume uploaded."),
@@ -549,6 +597,86 @@ async def interview_start(body: InterviewStartRequest):
     return {"message": "Interview started."}
 
 
+class InterviewChatRequest(BaseModel):
+    token: str
+    transcript_so_far: str = ""  # "Interviewer: ...\nCandidate: ..." format
+    candidate_message: str | None = None
+
+
+@app.post("/interview/chat")
+async def interview_chat(body: InterviewChatRequest):
+    """Get next interviewer message from interview mastermind (JD + resume + questions, ~10 min conversation). No auth."""
+    if not body.token or not body.token.strip():
+        raise HTTPException(status_code=400, detail="Token is required.")
+    jd_content = ""
+    profile_content = "{}"
+    questions: list[str] = []
+    async with get_session() as session:
+        inv = (
+            await session.execute(
+                select(InterviewSession).where(
+                    InterviewSession.interview_link_token == body.token.strip()
+                )
+            )
+        ).scalar_one_or_none()
+        if not inv:
+            raise HTTPException(status_code=404, detail="Invalid or expired interview link.")
+        jc = (
+            await session.execute(
+                select(JobCandidate).where(JobCandidate.id == inv.job_candidate_id)
+            )
+        ).scalar_one_or_none()
+        if not jc or jc.interview_completed_at:
+            raise HTTPException(status_code=400, detail="Interview already completed.")
+        job = (
+            await session.execute(select(Job).where(Job.id == jc.job_id))
+        ).scalar_one_or_none()
+        cp = (
+            await session.execute(
+                select(CandidateProfile).where(CandidateProfile.id == jc.candidate_profile_id)
+            )
+        ).scalar_one_or_none()
+        if not job or not cp:
+            raise HTTPException(status_code=404, detail="Job or candidate not found.")
+        jd_content = _job_content_for_agent(job)
+        profile_content = json.dumps(_candidate_profile_for_agent(cp), indent=0)
+        questions = (inv.questions or [])[:10]
+    questions_text = "\n".join(f"{i+1}. {q}" for i, q in enumerate(questions)) if questions else "Ask role-specific and behavioral questions."
+    system = (
+        "You are the interviewer in a live 10-minute video interview. Use the job description and candidate profile to ask "
+        "relevant questions. Cover the suggested questions naturally; follow up on the candidate's answers. "
+        "Keep each response to 1-3 sentences. Be professional and concise.\n\n"
+        f"Job description:\n{jd_content[:3000]}\n\nCandidate profile:\n{profile_content[:2000]}\n\n"
+        f"Suggested questions to cover:\n{questions_text}"
+    )
+    transcript = (body.transcript_so_far or "").strip()
+    candidate_message = (body.candidate_message or "").strip()
+    if not candidate_message:
+        if transcript:
+            raise HTTPException(status_code=400, detail="Candidate message required.")
+        user_content = (
+            "Begin the interview with a brief greeting and your first question. "
+            "Respond only with the interviewer line, no prefix."
+        )
+    else:
+        new_line = f"Candidate: {candidate_message}"
+        user_content = f"{transcript}\n{new_line}" if transcript else new_line
+        user_content += (
+            "\n\nRespond as the interviewer with your next question or follow-up "
+            "(only the interviewer line, no prefix)."
+        )
+    try:
+        response = get_llm().invoke([
+            SystemMessage(content=system),
+            HumanMessage(content=user_content),
+        ])
+        agent_reply = (response.content or "").strip()
+    except Exception as e:
+        logger.exception("Interview chat LLM failed: %s", e)
+        raise HTTPException(status_code=500, detail="Failed to generate interviewer response.")
+    return {"reply": agent_reply}
+
+
 class InterviewCompleteRequest(BaseModel):
     token: str
     transcript: str
@@ -679,13 +807,15 @@ class GenerateJDRequest(BaseModel):
 
 JD_GEN_SYSTEM = (
     "You are an expert HR writer. Given a short prompt describing a job (e.g. role title, company type, key skills), "
-    "output a single JSON object that strictly follows this schema. The root object must have one key 'job_description' "
-    "whose value is an object with: company_information (company_name, industry, website, location with city, state, country, remote), "
-    "job_details (job_title, department, employment_type from enum Full-time/Part-time/Internship/Contract/Temporary/Freelance, "
-    "experience_level from Entry/Junior/Mid/Senior/Lead/Manager, posted_date, application_deadline), "
-    "summary (string), responsibilities (array of strings), requirements (object with education, experience_years, "
-    "technical_skills array, soft_skills array, certifications array), preferred_qualifications (array of strings), "
-    "optional compensation (salary_min, salary_max, currency, benefits array), optional application_information. "
+    "output a JSON object with three keys: 'title', 'description_md', and 'job_description'. "
+    "1) 'title': a short job title (e.g. 'Senior Backend Engineer'). "
+    "2) 'description_md': a full, readable job description in Markdown: company intro, role summary, responsibilities as bullets, "
+    "requirements, preferred qualifications, compensation/benefits if relevant, and how to apply. Write it for candidates to read. "
+    "3) 'job_description': a structured object with company_information (company_name, industry, website, location with city, state, country, remote), "
+    "job_details (job_title, department, employment_type: Full-time/Part-time/Internship/Contract/Temporary/Freelance, "
+    "experience_level: Entry/Junior/Mid/Senior/Lead/Manager, posted_date, application_deadline), "
+    "summary (string), responsibilities (array of strings), requirements (education, experience_years, technical_skills, soft_skills, certifications), "
+    "preferred_qualifications (array), optional compensation (salary_min, salary_max, currency, benefits), optional application_information. "
     "Use empty strings or empty arrays where not specified. Output only valid JSON, no markdown code fence or extra text."
 )
 
@@ -705,13 +835,13 @@ async def employer_generate_jd(
                 SystemMessage(content=JD_GEN_SYSTEM),
                 HumanMessage(content=prompt),
             ],
-            JobDescriptionExtractOutput,
+            GenerateJDOutput,
+        )
+        title = (result.title or "").strip() or "Untitled role"
+        description_md = (result.description_md or "").strip() or job_description_to_markdown(
+            {"job_description": result.job_description}
         )
         job_description = {"job_description": result.job_description}
-        jd = result.job_description
-        details = jd.get("job_details") or {}
-        title = details.get("job_title") or "Untitled role"
-        description_md = job_description_to_markdown(job_description)
         return {"title": title, "description_md": description_md, "job_description": job_description}
     except Exception as e:
         logger.exception("JD generation failed: %s", e)
@@ -818,15 +948,20 @@ async def employer_publish_job(
     user: Annotated[dict, Depends(require_role("employer"))],
 ):
     """Publish job: ensure description_schema exists (via job description mastermind if needed), then get top 10 candidates from resume mastermind, send interview invites via interview mastermind."""
+    logger.info("employer_publish_job started job_id=%s employer_id=%s", job_id, user.get("user_id"))
     async with get_session() as session:
         job = (await session.execute(select(Job).where(Job.id == job_id, Job.employer_id == int(user["user_id"])))).scalar_one_or_none()
         if not job:
+            logger.warning("employer_publish_job job not found job_id=%s employer_id=%s", job_id, user.get("user_id"))
             raise HTTPException(status_code=404, detail="Job not found")
+        logger.info("employer_publish_job job found id=%s title=%s status=%s", job.id, job.title, job.status)
         # Generate description_schema via job description mastermind if job has only description_md
         if not job.description_schema and (job.description_md or "").strip():
+            logger.info("employer_publish_job generating description_schema via job description mastermind job_id=%s", job_id)
             result = await agent_client.job_description_generate_schema(job.description_md)
-            print(f"Job Description Mastermind result: {result}")
+            logger.info("employer_publish_job job_description_generate_schema result keys=%s", list(result.keys()) if isinstance(result, dict) else type(result).__name__)
             if "error" in result:
+                logger.warning("employer_publish_job job_description_generate_schema error job_id=%s result=%s", job_id, result)
                 schema = None
             else:
                 # Store full root { "job_description": { ... } } per schema
@@ -835,8 +970,14 @@ async def employer_publish_job(
                     job.description_schema = schema
                     job.description_md = job_description_to_markdown(schema)
                     await session.flush()
+                    logger.info("employer_publish_job description_schema stored and description_md updated job_id=%s", job_id)
+                else:
+                    logger.info("employer_publish_job no job_description in result, schema not stored job_id=%s", job_id)
+        else:
+            logger.info("employer_publish_job skipping schema generation job_id=%s has_schema=%s has_md=%s", job_id, bool(job.description_schema), bool((job.description_md or "").strip()))
         # Fetch all candidate profiles for best_match
         profiles = (await session.execute(select(CandidateProfile))).scalars().all()
+        logger.info("employer_publish_job fetched %s candidate profiles for best_match job_id=%s", len(profiles), job_id)
         candidates_payload = [
             {
                 "id": p.id,
@@ -848,16 +989,23 @@ async def employer_publish_job(
             }
             for p in profiles
         ]
-        top = await agent_client.resume_best_match(_job_schema_for_best_match(job), candidates_payload)
+        job_schema = _job_schema_for_best_match(job)
+        logger.info("employer_publish_job calling resume_best_match job_id=%s candidates_count=%s", job_id, len(candidates_payload))
+        top = await agent_client.resume_best_match(job_schema, candidates_payload)
         top_5 = top.get("top_5") or top.get("top_10") or []
         if len(top_5) > 5:
             top_5 = top_5[:5]
+        logger.info("employer_publish_job resume_best_match returned top_5 count=%s job_id=%s raw_keys=%s", len(top_5), job_id, list(top.keys()))
         # Create JobCandidate and InterviewSession placeholders; interview mastermind will send emails
+        created = 0
+        skipped = 0
         for i, entry in enumerate(top_5):
             profile_id = entry.get("profile_id") or entry.get("id")
             rank = entry.get("rank", i + 1)
             cand = (await session.execute(select(CandidateProfile).where(CandidateProfile.id == profile_id))).scalar_one_or_none()
             if not cand:
+                logger.warning("employer_publish_job candidate not found profile_id=%s rank=%s job_id=%s", profile_id, rank, job_id)
+                skipped += 1
                 continue
             jc = JobCandidate(
                 job_id=job.id,
@@ -870,29 +1018,41 @@ async def employer_publish_job(
             token = secrets.token_urlsafe(32)
             inv = InterviewSession(job_candidate_id=jc.id, interview_link_token=token)
             session.add(inv)
+            created += 1
+            logger.info("employer_publish_job created JobCandidate jc_id=%s candidate_id=%s rank=%s job_id=%s", jc.id, cand.id, rank, job_id)
+        logger.info("employer_publish_job JobCandidate/InterviewSession created=%s skipped=%s job_id=%s", created, skipped, job_id)
         job.status = "published"
         await session.commit()
+        logger.info("employer_publish_job committed job status=published job_id=%s", job_id)
 
         # Send "job opportunity" emails (job + profile); candidates see open opportunities in UI and swipe right to get interview link
         async with get_session() as session2:
             job_row = (await session2.execute(select(Job).where(Job.id == job_id))).scalar_one_or_none()
             jd_md = (job_row.description_md or "") if job_row else ""
             jc_list = (await session2.execute(select(JobCandidate).where(JobCandidate.job_id == job_id))).scalars().all()
+            logger.info("employer_publish_job email phase job_id=%s jc_count=%s jd_md_len=%s", job_id, len(jc_list), len(jd_md))
             infos = []
             for jc in jc_list:
                 cp = (await session2.execute(select(CandidateProfile).where(CandidateProfile.id == jc.candidate_profile_id))).scalar_one_or_none()
                 if not cp or not cp.email:
+                    if not cp:
+                        logger.warning("employer_publish_job email skip: candidate profile not found jc_id=%s", jc.id)
+                    elif not cp.email:
+                        logger.warning("employer_publish_job email skip: candidate has no email profile_id=%s", cp.id)
                     continue
                 infos.append({
                     "email": cp.email,
                     "full_name": cp.full_name or "Candidate",
                     "profile_summary": cp.summary or "",
                 })
+            logger.info("employer_publish_job sending interview_send_potential_match job_id=%s job_title=%s candidate_infos_count=%s", job_id, job.title, len(infos))
             await agent_client.interview_send_potential_match(
                 job_title=job.title,
                 job_description_md=jd_md,
                 candidate_infos=infos,
             )
+            logger.info("employer_publish_job interview_send_potential_match completed job_id=%s", job_id)
+    logger.info("employer_publish_job finished job_id=%s", job_id)
     return {"message": "Job published. Top candidates notified; they can view opportunities in the app and swipe right to get their interview link."}
 
 

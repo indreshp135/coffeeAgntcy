@@ -15,13 +15,12 @@ from schemas import RESUME_SCHEMA_JSON, resume_schema_to_profile
 logger = logging.getLogger("corto.resume_mastermind.agent")
 
 EXTRACT_SYSTEM_TEMPLATE = (
-    "You are a resume parsing expert. Given raw resume text, extract structured data as JSON that strictly "
-    "follows this schema. The root object must have exactly one key 'resume' whose value is an object with: "
+    "You are a resume parsing expert. Given raw resume text, extract all profile details into structured fields: "
     "personal_information (name, email, phone, address with street, city, state, zip_code, country), "
-    "education (array of {{degree, major, school, graduation_year}}), "
-    "work_experience (array of {{position, company, start_date, end_date or null, responsibilities array}}), "
-    "skills (array of strings), summary (string), additional_details (languages, certifications, interests arrays). "
-    "Use empty strings or empty arrays where not specified. Return ONLY valid JSON, no markdown or extra text.\n\n"
+    "education (array of degree, major, school, graduation_year), "
+    "work_experience (array of position, company, start_date, end_date or null, responsibilities), "
+    "skills (array of strings), summary (string), additional_details (languages, certifications, interests). "
+    "Fill every field the candidate provides; use empty strings or empty arrays where not specified.\n\n"
     "Schema:\n{schema}"
 )
 
@@ -46,7 +45,7 @@ class ResumeMastermindAgent:
         ]
         try:
             result = invoke_structured_with_retry(messages, ResumeExtractOutput)
-            data = {"resume": result.resume}
+            data = result.to_resume_dict()
             self._resumes.append(data)
             profile = resume_schema_to_profile(data)
             name = profile.get("full_name") or "Unknown"
@@ -57,7 +56,12 @@ class ResumeMastermindAgent:
             )
         except Exception as e:
             logger.warning("Structured resume extraction failed, storing as raw: %s", e)
-            self._resumes.append({"resume": {"personal_information": {"name": "Unknown"}, "raw": resume_text[:500]}})
+            self._resumes.append({
+                "resume": {
+                    "personal_information": {"name": "Unknown"},
+                    "raw": resume_text[:500],
+                },
+            })
             return f"Resume stored (raw). Total resumes stored: {len(self._resumes)}.", None, None
 
     async def best_match(self, job_description: str) -> str:

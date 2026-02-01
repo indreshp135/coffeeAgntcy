@@ -19,10 +19,6 @@ function App() {
     }
   }, []);
 
-  if (interviewToken) {
-    return <InterviewPage token={interviewToken} />;
-  }
-
   useEffect(() => {
     const token = localStorage.getItem("access_token");
     const role = localStorage.getItem("role") as "candidate" | "employer" | null;
@@ -43,6 +39,10 @@ function App() {
     localStorage.removeItem("username");
     setAuth(null);
   }, []);
+
+  if (interviewToken) {
+    return <InterviewPage token={interviewToken} />;
+  }
 
   if (checking) {
     return (

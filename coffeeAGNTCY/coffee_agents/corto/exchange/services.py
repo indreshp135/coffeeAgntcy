@@ -140,7 +140,13 @@ class AgentClient:
         payload = {"job_description": job_content, "resume_text": profile_summary}
         try:
             raw = await self._send_to_agent(interview_agent_card, payload)
-            data = json.loads(raw) if isinstance(raw, str) and raw.strip() else {}
+            if isinstance(raw, str) and raw.strip():
+                try:
+                    data = json.loads(raw)
+                except json.JSONDecodeError:
+                    data = {}
+            else:
+                data = {}
         except Exception as e:
             logger.exception("Interview mastermind prepare_questions failed: %s", e)
             return ""
@@ -247,5 +253,16 @@ class AgentClient:
         candidates: list[dict],
         top_3_ids: list[int],
     ) -> None:
-        """Optional: send results to JD mastermind. No-op if not implemented."""
-        pass
+        """Send all selected candidates with interview recordings and top 3 highlighted to JD mastermind."""
+        payload = {
+            "action": "store_interview_results",
+            "job_id": job_id,
+            "job_title": job_title,
+            "candidates": candidates,
+            "top_3_ids": top_3_ids,
+        }
+        try:
+            await self._send_to_agent(job_description_agent_card, payload)
+        except Exception as e:
+            logger.exception("JD mastermind store_interview_results failed: %s", e)
+            raise
