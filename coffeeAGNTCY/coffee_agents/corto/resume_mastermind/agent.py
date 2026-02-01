@@ -9,14 +9,20 @@ from langchain_core.messages import HumanMessage, SystemMessage
 
 from ioa_observe.sdk.decorators import agent
 
-from common.llm import get_llm
+from common.llm import get_llm, invoke_structured_with_retry, ResumeExtractOutput
+from schemas import RESUME_SCHEMA_JSON, resume_schema_to_profile
 
 logger = logging.getLogger("corto.resume_mastermind.agent")
 
-EXTRACT_SYSTEM = (
-    "You are a resume parsing expert. Given raw resume text, extract structured data as JSON with keys: "
-    "name, email, phone (if present), skills (list), experience (list of {role, company, duration, summary}), "
-    "education (list of {degree, institution, year}). Return ONLY valid JSON, no markdown or extra text."
+EXTRACT_SYSTEM_TEMPLATE = (
+    "You are a resume parsing expert. Given raw resume text, extract structured data as JSON that strictly "
+    "follows this schema. The root object must have exactly one key 'resume' whose value is an object with: "
+    "personal_information (name, email, phone, address with street, city, state, zip_code, country), "
+    "education (array of {{degree, major, school, graduation_year}}), "
+    "work_experience (array of {{position, company, start_date, end_date or null, responsibilities array}}), "
+    "skills (array of strings), summary (string), additional_details (languages, certifications, interests arrays). "
+    "Use empty strings or empty arrays where not specified. Return ONLY valid JSON, no markdown or extra text.\n\n"
+    "Schema:\n{schema}"
 )
 
 MATCH_SYSTEM = (
@@ -32,29 +38,27 @@ class ResumeMastermindAgent:
     def __init__(self):
         self._resumes: list[dict[str, Any]] = []
 
-    async def ingest_resume(self, resume_text: str) -> str:
-        """Extract structured data from resume text and store it. Returns summary."""
+    async def ingest_resume(self, resume_text: str) -> tuple[str, dict[str, Any] | None, dict[str, Any] | None]:
+        """Extract structured data from resume text. Returns (summary, resume_schema, profile_dict)."""
         messages = [
-            SystemMessage(content=EXTRACT_SYSTEM),
+            SystemMessage(content=EXTRACT_SYSTEM_TEMPLATE.format(schema=RESUME_SCHEMA_JSON)),
             HumanMessage(content=resume_text),
         ]
-        response = get_llm().invoke(messages)
-        content = response.content.strip()
-        # Strip markdown code block if present
-        if content.startswith("```"):
-            content = content.split("```")[1]
-            if content.startswith("json"):
-                content = content[4:]
-            content = content.strip()
         try:
-            data = json.loads(content)
+            result = invoke_structured_with_retry(messages, ResumeExtractOutput)
+            data = {"resume": result.resume}
             self._resumes.append(data)
-            name = data.get("name", "Unknown")
-            return f"Resume ingested for: {name}. Total resumes stored: {len(self._resumes)}."
-        except json.JSONDecodeError:
-            logger.warning("LLM did not return valid JSON, storing as raw.")
-            self._resumes.append({"raw": resume_text[:500], "name": "Unknown"})
-            return f"Resume stored (raw). Total resumes stored: {len(self._resumes)}."
+            profile = resume_schema_to_profile(data)
+            name = profile.get("full_name") or "Unknown"
+            return (
+                f"Resume ingested for: {name}. Total resumes stored: {len(self._resumes)}.",
+                data,
+                profile,
+            )
+        except Exception as e:
+            logger.warning("Structured resume extraction failed, storing as raw: %s", e)
+            self._resumes.append({"resume": {"personal_information": {"name": "Unknown"}, "raw": resume_text[:500]}})
+            return f"Resume stored (raw). Total resumes stored: {len(self._resumes)}.", None, None
 
     async def best_match(self, job_description: str) -> str:
         """Return best-matching candidates for the job description."""
@@ -86,8 +90,20 @@ class ResumeMastermindAgent:
             text = data.get("resume_text", "")
             if not text:
                 return {"error": "Missing resume_text for ingest_resume."}
-            result = await self.ingest_resume(text)
-            return {"result": result}
+            result, resume_schema, profile = await self.ingest_resume(text)
+            # Ensure JSON-serializable dicts for A2A response (exchange expects same format as schema)
+            def _plain(d: dict[str, Any] | None) -> dict[str, Any] | None:
+                if d is None:
+                    return None
+                try:
+                    return json.loads(json.dumps(d, default=str))
+                except (TypeError, ValueError):
+                    return None
+            return {
+                "result": result,
+                "resume": _plain(resume_schema),
+                "profile": _plain(profile),
+            }
         if action == "best_match":
             jd = data.get("job_description", "")
             if not jd:

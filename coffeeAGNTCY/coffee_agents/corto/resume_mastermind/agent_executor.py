@@ -1,6 +1,7 @@
 # Copyright AGNTCY Contributors (https://github.com/agntcy)
 # SPDX-License-Identifier: Apache-2.0
 
+import json
 import logging
 
 from a2a.server.agent_execution import AgentExecutor, RequestContext
@@ -61,9 +62,19 @@ class ResumeMastermindExecutor(AgentExecutor):
                     new_agent_text_message(output["error"])
                 )
                 return
-            await event_queue.enqueue_event(
-                new_agent_text_message(output.get("result", ""))
-            )
+            # For ingest_resume, return full JSON (result, resume, profile) so exchange gets profile in schema format
+            try:
+                data = json.loads(payload) if isinstance(payload, str) else payload
+            except (json.JSONDecodeError, TypeError):
+                data = {}
+            if data.get("action") == "ingest_resume":
+                await event_queue.enqueue_event(
+                    new_agent_text_message(json.dumps(output))
+                )
+            else:
+                await event_queue.enqueue_event(
+                    new_agent_text_message(output.get("result", ""))
+                )
         except Exception as e:
             logger.exception("Resume mastermind execution failed: %s", e)
             raise ServerError(error=InternalError()) from e
